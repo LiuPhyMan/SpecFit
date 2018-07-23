@@ -13,14 +13,13 @@ import math
 import numpy as np
 from scipy import special
 from matplotlib import pyplot as plt
-import voigt
 
 def convolute_to_voigt(*, fwhm_G, fwhm_L):
     return 0.5346 * fwhm_L + np.sqrt(0.2166 * fwhm_L ** 2 + fwhm_G ** 2)
 
 
 class MoleculeState(object):
-    
+
     def __init__(self, state):
         super().__init__()
         self.state = state
@@ -51,7 +50,7 @@ class MoleculeState(object):
             self.ae = 0.02325
             self.De = 7.33e-6
             self.be = 0
-    
+
     def Ge_term(self, v):
         if self.state == 'OH(A)':
             # LIFBASE manual.pdf
@@ -67,7 +66,7 @@ class MoleculeState(object):
             return v_term[v]
         else:
             return self.we * (v + .5) - self.wexe * (v + .5) ** 2
-    
+
     def Fev_term(self, v, J):
         if self.state in ('CO(B)',):
             Bv = self.Be - self.ae * (v + .5)
@@ -82,14 +81,14 @@ class MoleculeState(object):
             return Fev
         else:
             return
-    
+
     def term(self, v, J):
         return self.Te + self.Ge_term(v) + self.Fev_term(v, J)
 
 
 class Spectra(object):
     WNcm2K = 1.4387773538277204
-    
+
     def __init__(self):
         super().__init__()
         self.wave_number = None
@@ -98,10 +97,10 @@ class Spectra(object):
         self.distribution = None
         self.intensity = None
         self.normalized_factor = None
-    
+
     def set_intensity(self):
         self.intensity = self.distribution * self.emission_coefficients * self.wave_number
-    
+
     def get_extended_wavelength(self, *, waveLength_exp,
                                 fwhm, slit_func, wavelength_range=None,
                                 normalized=False, threshold=3):
@@ -124,10 +123,10 @@ class Spectra(object):
         wavelength_in_range = self.wave_length[_chosen]
         intensity_in_range = self.intensity[_chosen]
         wv_exp_in_range = waveLength_exp[wv_exp_chosen]
-        
+
         if _chosen.any() == False:
             return wv_exp_in_range, np.zeros_like(wv_exp_in_range)
-        
+
         delta_wv = (wv_exp_in_range[np.newaxis].transpose() - wavelength_in_range)
         delta_wv_extended = self.evolve_slit_func(delta_wv, fwhm, slit_func, threshold)
         _intensity = delta_wv_extended.dot(intensity_in_range)
@@ -135,7 +134,7 @@ class Spectra(object):
             return wv_exp_in_range, _intensity
         self.normalized_factor = _intensity.max()
         return wv_exp_in_range, _intensity / _intensity.max()
-    
+
     def evolve_slit_func(self, delta_wv, fwhm, slit_func, threshold):
         if slit_func == 'Gaussian':
             _fwhm = fwhm['Gaussian']
@@ -148,7 +147,7 @@ class Spectra(object):
             # temp = temp * math.sqrt(4 * math.log(2) / math.pi) / _fwhm
             temp = temp * 1
             return temp
-        
+
         elif slit_func == 'Lorentzian':
             _fwhm = fwhm['Lorentzian']
             delta_x = delta_wv / _fwhm
@@ -159,7 +158,7 @@ class Spectra(object):
             # temp = temp / math.pi / _fwhm
             temp = temp * 0.5
             return temp
-        
+
         elif slit_func == 'Voigt':
             # fwhm_G = fwhm['Gaussian']
             # fwhm_L = fwhm['Lorentzian']
@@ -180,12 +179,12 @@ class Spectra(object):
             _fwhm = fG ** 5 + 2.69269 * fG ** 4 * fL + 2.42843 * fG ** 3 * fL ** 2 + \
                     4.47163 * fG ** 2 * fL ** 3 + 0.07842 * fG * fL ** 4 + fL ** 5
             _fwhm = _fwhm ** (1 / 5)
-            
+
             delta_x = delta_wv / _fwhm
             _where = np.logical_and(-threshold < delta_x, delta_x < threshold)
             if not _where.any():
                 return np.zeros_like(delta_wv)
-            
+
             a = 1.36603 * (fL / _fwhm) - 0.47719 * (fL / _fwhm) ** 2 + 0.11116 * (fL / _fwhm) ** 3
             L_part = fL / 2 / math.pi / (delta_wv ** 2 + (fL / 2) ** 2)
             sigma = fG / 2 / math.sqrt(2 * math.log(2))
@@ -193,10 +192,10 @@ class Spectra(object):
             _ = np.exp(-delta_wv**2/2/sigma**2, out=temp, where=_where)
             G_part = temp / sigma / math.sqrt(2 * math.pi)
             return a * L_part + (1-a) *G_part
-        
+
         else:
             raise Exception("The slit function '{s}' is error.".format(s=slit_func))
-    
+
     @staticmethod
     def wavelength_vac2air(wv0):
         k0 = 238.0185
@@ -210,19 +209,19 @@ class Spectra(object):
 
 # noinspection SpellCheckingInspection
 class MoleculeSpectra(Spectra):
-    
+
     def __init__(self):
         super().__init__()
         self.gv_upper = None
         self.gJ_upper = None
         self.Ge_upper = None
         self.Fev_upper = None
-    
+
     def set_maxwell_distribution(self, *, Tvib, Trot):
         vib_distribution = self.gv_upper * np.exp(-self.Ge_upper * self.WNcm2K / Tvib)
         rot_distribution = self.gJ_upper * np.exp(-self.Fev_upper * self.WNcm2K / Trot)
         self.distribution = vib_distribution * rot_distribution
-    
+
     def set_double_temperature_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
         warm_part = self.gJ_upper * np.exp(-self.Fev_upper * self.WNcm2K / Trot_hot)
         cold_part = self.gJ_upper * np.exp(-self.Fev_upper * self.WNcm2K / Trot_cold)
@@ -231,7 +230,7 @@ class MoleculeSpectra(Spectra):
         rot_distribution = hot_ratio * warm_part + (1 - hot_ratio) * cold_part
         vib_distribution = self.gv_upper * np.exp(-self.Ge_upper * self.WNcm2K / Tvib)
         self.distribution = vib_distribution * rot_distribution
-    
+
     def ravel_coefficients(self):
         self.wave_number = self.wave_number.ravel()
         self.wave_length = self.wave_length.ravel()
@@ -240,7 +239,7 @@ class MoleculeSpectra(Spectra):
         self.Ge_upper = self.Ge_upper.ravel()
         self.gJ_upper = self.gJ_upper.ravel()
         self.Fev_upper = self.Fev_upper.ravel()
-    
+
     @staticmethod
     def honl_london_factor(*, band, branch):
         if band in ('CO(B-A)',):
@@ -278,26 +277,26 @@ class OHSpectra(MoleculeSpectra):
 
     """
     _BRANCH_SEQ = ['P1', 'P2', 'Q1', 'Q2', 'R1', 'R2', 'O12', 'Q12', 'P12', 'R21', 'Q21', 'S21']
-    
+
     def __init__(self, *, band, v_upper, v_lower):
         super().__init__()
         self._set_coefs(band=band, v_upper=v_upper, v_lower=v_lower)
-    
+
     def line_intensity(self, *, branch):
         assert branch in self._BRANCH_SEQ
         print(branch)
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
         print(branch_index)
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
-    
+
     def _set_coefs(self, *, band, v_upper, v_lower):
         assert band == 'A-X'
         # assert (v_upper, v_lower) in ((0, 0), (1, 0), (1, 1))
         _sign = '{v0}-{v1}'.format(v0=v_upper, v1=v_lower)
-        
+
         def read_coefficients_from_csv(file_name):
             return np.genfromtxt(file_name, delimiter=',', skip_header=4)[:, 1:]
-        
+
         dir_path = os.path.dirname(os.path.realpath(__file__))
         wvlg_path = dir_path + r"\OH(A-X)\{v2v}\line_position_air.csv".format(v2v=_sign)
         wvnm_path = dir_path + r"\OH(A-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
@@ -307,12 +306,12 @@ class OHSpectra(MoleculeSpectra):
         self.emission_coefficients = read_coefficients_from_csv(ec_path)
         self._set_Ge(v_upper)
         self._set_Fev(v_upper)
-    
+
     def _set_Ge(self, v_upper):
         self.gv_upper = np.ones_like(self.wave_length)
         self.Ge_upper = np.ones_like(self.wave_length) * \
                         MoleculeState('OH(A)').Ge_term(v=v_upper)
-    
+
     def _set_Fev(self, v_upper):
         N_max = self.wave_length.shape[0]
         N_lower = np.tile(np.arange(1, N_max + 1), (12, 1)).transpose()
@@ -341,13 +340,13 @@ class OHSpectra(MoleculeSpectra):
 class COSpectra(MoleculeSpectra):
     __FRANK_CONDON_FACTORS = np.array([[0.08898, 0.18159, 0.21056, 0.18339, 0.13399, 0.08706],
                                        [0.25053, 0.17569, 0.03039, 0.00420, 0.05214, 0.09553]])
-    
+
     def __init__(self, *, band, v_upper, v_lower):
         super().__init__()
         self.v_upper = v_upper
         self.v_lower = v_lower
         self.set_coefficients(band=band)
-    
+
     def set_coefficients(self, *, band):
         r"""
         Branches :
@@ -374,15 +373,15 @@ class COSpectra(MoleculeSpectra):
         self._set_Ge()
         self._set_Fev()
         self._set_emission_coefficients()
-    
+
     def _set_Ge(self):
         self.gv_upper = np.ones_like(self.wave_length)
         self.Ge_upper = np.ones_like(self.wave_length) * \
                         MoleculeState('CO(B)').Ge_term(v=self.v_upper)
-    
+
     def _set_Fev(self):
         self.Fev_upper = MoleculeState('CO(B)').Fev_term(self.v_upper, self.J_upper)
-    
+
     def _set_emission_coefficients(self):
         sjj = np.zeros_like(self.J_upper)
         sjj[:, 0] = self.honl_london_factor(band='CO(B-A)', branch='P')(self.J_upper[:, 0])
@@ -390,7 +389,7 @@ class COSpectra(MoleculeSpectra):
         sjj[:, 2] = self.honl_london_factor(band='CO(B-A)', branch='R')(self.J_upper[:, 2])
         self.emission_coefficients = self.wave_number ** 3 * self.frank_condon_factor() * sjj / (
                 2 * self.J_upper + 1)
-    
+
     def frank_condon_factor(self):
         r"""
         from "The band spectrum of carbon monoxide" book.
@@ -399,13 +398,13 @@ class COSpectra(MoleculeSpectra):
 
 
 class AddSpectra(MoleculeSpectra):
-    
+
     def __init__(self, spec0, spec1):
         super().__init__()
-        
+
         def combine(a, b):
             return np.hstack((a.ravel(), b.ravel()))
-        
+
         self.wave_number = combine(spec0.wave_number, spec1.wave_number)
         self.wave_length = combine(spec0.wave_length, spec1.wave_length)
         self.emission_coefficients = combine(spec0.emission_coefficients,
@@ -459,8 +458,8 @@ if __name__ == '__main__':
     # plt.plot(xdata, func(xdata, *popt))
     """
     oh = OHSpectra(band='A-X', v_upper=0, v_lower=0)
-    
-    
+
+
     def func(x, Tvib, Trot_hot, Trot_cold, hot_ratio, fwhm_g, fwhm_l):
         print(Trot_cold)
         print(Trot_hot)
@@ -476,8 +475,8 @@ if __name__ == '__main__':
                                                fwhm={'Gaussian': fwhm_g, 'Lorentzian': fwhm_l},
                                                normalized=True)
         return intens
-    
-    
+
+
     # oh.set_maxwell_distribution(Tvib=3000, Trot=3000)
     oh.set_double_temperature_distribution(Tvib=3000,
                                            Trot_cold=3000, Trot_hot=10000, hot_ratio=0.6)
@@ -489,10 +488,10 @@ if __name__ == '__main__':
                                                         fwhm={'Gaussian': 0.001,
                                                               'Lorentzian': 0.03},
                                                         normalized=True)
-    
+
     intensity = intensity + 0.01 * np.random.rand(*intensity.shape)
     from lmfit import Model
-    
+
     spectra_fit_model = Model(func)
     params = spectra_fit_model.make_params()
     params['Tvib'].set(value=6000, vary=True)
@@ -501,11 +500,11 @@ if __name__ == '__main__':
     params['hot_ratio'].set(value=0.5, vary=True)
     params['fwhm_g'].set(value=0.001, vary=True, min=0, max=1)
     params['fwhm_l'].set(value=0.03, vary=True, min=0, max=1)
-    
+
     result = spectra_fit_model.fit(intensity, params=params,
                                    # method='least_squares',
                                    fit_kws=dict(ftol=1e-12),
                                    x=wv_in_range)
     print(result.fit_report())
-    
+
     plt.plot(wv_in_range, intensity)

@@ -157,8 +157,7 @@ class XOffsetQGroupBox(QW.QGroupBox):
         self._set_slot()
 
     def para_form(self):
-        para_form_dict = dict(constant='k0', linear='k1', parabolic='k2', cubic='k3')
-        return para_form_dict[self._combobox.currentText().lower()]
+        return self._combobox.currentText().lower()
 
     def value(self):
         return dict(para_form=self.para_form(),
@@ -221,8 +220,8 @@ class XOffsetQGroupBox(QW.QGroupBox):
             self._spinBoxes[key].setDecimals(9)
             self._spinBoxes[key].setValue(0)
             self._spinBoxes[key].setAccelerated(True)
-        self._spinBoxes['x0'].setSingleStep(0.5)
-        self._spinBoxes['x0'].setDecimals(2)
+        self._spinBoxes['x0'].setSingleStep(1)
+        self._spinBoxes['x0'].setDecimals(0)
         self._spinBoxes['x0'].setValue(300)
         self._spinBoxes['k1'].setValue(-0.067)
 
@@ -234,29 +233,15 @@ class XOffsetQGroupBox(QW.QGroupBox):
         self._combobox.setCurrentIndex(1)
 
     def _set_slot(self):
-        def set_all_enabled():
-            for _key in self._spinBoxes:
-                self._spinBoxes[_key].setEnabled(True)
-                self._label[_key].setEnabled(True)
-
         def slot_emit():
             self.valueChanged.emit()
 
         def _combobox_callback():
-            set_all_enabled()
-            _form = self._combobox.currentText().lower()
-            _bool = {'constant': [1, 1, 0, 0, 0],
-                     'linear': [1, 1, 1, 0, 0],
-                     'parabolic': [1, 1, 1, 1, 0],
-                     'cubic': [1, 1, 1, 1, 1]}
-            for _s, _l in zip(('x0', 'k0', 'k1', 'k2', 'k3'), _bool[_form]):
-                if _l == 0:
-                    self._spinBoxes[_s].setEnabled(False)
-                    self._label[_s].setEnabled(False)
-                    # self._spinBoxes[_s].setReadOnly(True)
-                    # print(self._spinBoxes[_s].text())
+            for _s, _l in zip(('x0', 'k0', 'k1', 'k2', 'k3'), self.state()):
+                self._spinBoxes[_s].setEnabled(_l)
+                self._label[_s].setEnabled(_l)
+            slot_emit()
 
-        self._combobox.currentTextChanged.connect(slot_emit)
         for _key in self._spinBoxes:
             self._spinBoxes[_key].valueChanged.connect(slot_emit)
 
