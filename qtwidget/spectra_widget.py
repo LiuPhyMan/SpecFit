@@ -72,6 +72,10 @@ class FWHMQGroupBox(QW.QGroupBox):
                     fwhm_g=self.fwhm_g_part.value(),
                     fwhm_l=self.fwhm_l_part.value())
 
+    def set_value(self, *, fwhm_g, fwhm_l):
+        self.fwhm_g_part.setValue(fwhm_g)
+        self.fwhm_l_part.setValue(fwhm_l)
+
     def _set_format(self):
         self.line_shape_combobox.setFont(_DEFAULT_FONT)
         self.line_shape_combobox.setCursor(QCursor(Qt.PointingHandCursor))
@@ -423,8 +427,8 @@ class TemperatureQGroupBox(QW.QGroupBox):
         self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
 
         self._vib_input = QW.QDoubleSpinBox()
-        self._rot_hot_input = QW.QDoubleSpinBox()
         self._rot_cold_input = QW.QDoubleSpinBox()
+        self._rot_hot_input = QW.QDoubleSpinBox()
         self._hot_ratio = QW.QDoubleSpinBox()
         self._distribution_combobox = QW.QComboBox()
         self._labels = dict()
@@ -440,9 +444,15 @@ class TemperatureQGroupBox(QW.QGroupBox):
     def value(self):
         return dict(para_form=self._distribution_combobox.currentText(),
                     Tvib=self._vib_input.value(),
-                    Trot_hot=self._rot_hot_input.value(),
                     Trot_cold=self._rot_cold_input.value(),
+                    Trot_hot=self._rot_hot_input.value(),
                     hot_ratio=self._hot_ratio.value())
+
+    def set_value(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
+        self._vib_input.setValue(Tvib)
+        self._rot_cold_input.setValue(Trot_cold)
+        self._rot_hot_input.setValue(Trot_hot)
+        self._hot_ratio.setValue(hot_ratio)
 
     def state(self):
         if self._distribution_combobox.currentText() == 'one_Trot':
@@ -574,7 +584,7 @@ class ParaQWidget(QW.QWidget):
         x_offset :
             para_form, x0, k0, k1, k2, k3
         y_offset :
-            para_form, k0, k1
+            para_form, x0, k0, c0, I0
         """
         return dict(temperature=self._temperature.value(),
                     fwhm=self._fwhm.value(),
@@ -582,16 +592,17 @@ class ParaQWidget(QW.QWidget):
                     y_offset=self._y_offset.value())
 
     def set_value(self, **kwargs):
-        self._temperature._vib_input.setValue(kwargs['Tvib'])
-        self._temperature._rot_hot_input.setValue(kwargs['Trot_hot'])
-        self._temperature._rot_cold_input.setValue(kwargs['Trot_cold'])
-        self._temperature._hot_ratio.setValue(kwargs['hot_ratio'])
-        self._fwhm.fwhm_g_part.setValue(kwargs['fwhm_g'])
-        self._fwhm.fwhm_l_part.setValue(kwargs['fwhm_l'])
-        self._x_offset._spinBoxes['k0'].setValue(kwargs['x_offset_k0'])
-        self._x_offset._spinBoxes['k1'].setValue(kwargs['x_offset_k1'])
-        self._x_offset._spinBoxes['k2'].setValue(kwargs['x_offset_k2'])
-        self._x_offset._spinBoxes['k3'].setValue(kwargs['x_offset_k3'])
+        self._temperature.set_value(Tvib=kwargs['Tvib'],
+                                    Trot_cold=kwargs['Trot_cold'],
+                                    Trot_hot=kwargs['Trot_hot'],
+                                    hot_ratio=kwargs['hot_ratio'])
+        self._fwhm.set_value(fwhm_g=kwargs['fwhm_g'],
+                             fwhm_l=kwargs['fwhm_l'])
+        self._x_offset.set_value(x0=kwargs['x_offset_x0'],
+                                 k0=kwargs['x_offset_k0'],
+                                 k1=kwargs['x_offset_k1'],
+                                 k2=kwargs['x_offset_k2'],
+                                 k3=kwargs['x_offset_k3'])
         self._y_offset.set_value(x0=kwargs['y_offset_x0'],
                                  k0=kwargs['y_offset_k0'],
                                  c0=kwargs['y_offset_c0'],
