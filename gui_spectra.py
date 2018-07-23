@@ -501,7 +501,7 @@ class Temp(QW.QMainWindow):
 
 
 # ----------------------------------------------------------------------------------------------- #
-if __name__=="__main__":
+if __name__ == "__main__":
     if not QW.QApplication.instance():
         app = QW.QApplication(sys.argv)
     else:
@@ -510,5 +510,3 @@ if __name__=="__main__":
     window.show()
     app.exec_()
     # run_app()
-
-

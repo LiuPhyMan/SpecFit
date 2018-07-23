@@ -101,46 +101,42 @@ class FWHMQGroupBox(QW.QGroupBox):
         self.setLayout(layout)
 
     def _set_slot(self):
-        def slot_emit():
-            self.valueChanged.emit()
-
-        # self.line_shape_combobox.currentTextChanged.connect(slot_emit)
         self.line_shape_combobox.currentTextChanged.connect(self.line_shape_combobox_callback)
-        self.line_shape_combobox.currentTextChanged.connect(lambda x: slot_emit())
-        self.fwhm_g_part.valueChanged.connect(slot_emit)
-        self.fwhm_l_part.valueChanged.connect(slot_emit)
-        #
+        self.fwhm_g_part.valueChanged.connect(lambda: self.valueChanged.emit())
+        self.fwhm_l_part.valueChanged.connect(lambda: self.valueChanged.emit())
         self.valueChanged.connect(self.set_fwhm_total)
-        slot_emit()
         self.line_shape_combobox_callback()
 
     def line_shape_combobox_callback(self):
+        def set_fwhm_g_state(state):
+            self.fwhm_g_part.setEnabled(state)
+            self._label['Gauss'].setEnabled(state)
+
+        def set_fwhm_l_state(state):
+            self.fwhm_l_part.setEnabled(state)
+            self._label['Loren'].setEnabled(state)
+
         if self.para_form() == 'Gaussian':
-            self.fwhm_g_part.setEnabled(True)
-            self.fwhm_l_part.setDisabled(True)
-            self._label['Gauss'].setEnabled(True)
-            self._label['Loren'].setDisabled(True)
+            set_fwhm_g_state(True)
+            set_fwhm_l_state(False)
         if self.para_form() == 'Lorentzian':
-            self.fwhm_g_part.setDisabled(True)
-            self.fwhm_l_part.setEnabled(True)
-            self._label['Gauss'].setDisabled(True)
-            self._label['Loren'].setEnabled(True)
+            set_fwhm_g_state(False)
+            set_fwhm_l_state(True)
         if self.para_form() == 'Voigt':
-            self.fwhm_g_part.setEnabled(True)
-            self.fwhm_l_part.setEnabled(True)
-            self._label['Gauss'].setEnabled(True)
-            self._label['Loren'].setEnabled(True)
+            set_fwhm_g_state(True)
+            set_fwhm_l_state(True)
+
+        self.valueChanged.emit()
 
     def set_fwhm_total(self):
         if self.para_form() == 'Gaussian':
-            self.fwhm_total.setText('{i:.5f} nm'.format(i=self.value()['fwhm_g']))
+            _value = self.value()['fwhm_g']
         elif self.para_form() == 'Lorentzian':
-            self.fwhm_total.setText('{i:.5f} nm'.format(i=self.value()['fwhm_l']))
+            _value = self.value()['fwhm_l']
         elif self.para_form() == 'Voigt':
-            fwhm_g = self.value()['fwhm_g']
-            fwhm_l = self.value()['fwhm_l']
-            fwhm_v = convolute_to_voigt(fwhm_G=fwhm_g, fwhm_L=fwhm_l)
-            self.fwhm_total.setText('{i:.5f} nm'.format(i=fwhm_v))
+            _value = convolute_to_voigt(fwhm_G=self.value()['fwhm_g'],
+                                        fwhm_L=self.value()['fwhm_l'])
+        self.fwhm_total.setText('{i:.5f} nm'.format(i=_value))
 
 
 class XOffsetQGroupBox(QW.QGroupBox):
