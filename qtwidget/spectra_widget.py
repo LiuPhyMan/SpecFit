@@ -446,9 +446,9 @@ class TemperatureQGroupBox(QW.QGroupBox):
 
     def state(self):
         if self._distribution_combobox.currentText() == 'one_Trot':
-            return dict(Tvib=True, Trot_cold=True, Trot_hot=False, hot_ratio=False)
+            return [True, True, False, False]
         else:
-            return dict(Tvib=True, Trot_cold=True, Trot_hot=True, hot_ratio=True)
+            return [True, True, True, True]
 
     def _set_labels(self):
         self._labels['Tvib'] = BetterQLabel('Tvib')
@@ -516,35 +516,27 @@ class TemperatureQGroupBox(QW.QGroupBox):
         def slot_emit():
             self.valueChanged.emit()
 
-        def _combobox_callback(_text):
-            if _text == 'one_Trot':
-                self._labels['Tvib'].setEnabled(True)
-                self._labels['Trot_cold'].setEnabled(True)
-                self._labels['Trot_hot'].setEnabled(False)
-                self._labels['hot_ratio'].setEnabled(False)
-                self._vib_input.setEnabled(True)
-                self._rot_cold_input.setEnabled(True)
-                self._rot_hot_input.setEnabled(False)
-                self._hot_ratio.setEnabled(False)
+        def _combobox_callback():
+            self._labels['Tvib'].setEnabled(self.state()[0])
+            self._labels['Trot_cold'].setEnabled(self.state()[1])
+            self._labels['Trot_hot'].setEnabled(self.state()[2])
+            self._labels['hot_ratio'].setEnabled(self.state()[3])
+            self._vib_input.setEnabled(self.state()[0])
+            self._rot_cold_input.setEnabled(self.state()[1])
+            self._rot_hot_input.setEnabled(self.state()[2])
+            self._hot_ratio.setEnabled(self.state()[3])
+            if self._distribution_combobox.currentText() == 'one_Trot':
                 self._labels['Trot_cold'].setText('Trot')
-            elif _text == 'two_Trot':
-                self._labels['Tvib'].setEnabled(True)
-                self._labels['Trot_cold'].setEnabled(True)
-                self._labels['Trot_hot'].setEnabled(True)
-                self._labels['hot_ratio'].setEnabled(True)
-                self._vib_input.setEnabled(True)
-                self._rot_cold_input.setEnabled(True)
-                self._rot_hot_input.setEnabled(True)
-                self._hot_ratio.setEnabled(True)
+            elif self._distribution_combobox.currentText() == 'two_Trot':
                 self._labels['Trot_cold'].setText('Trot_cold')
+            slot_emit()
 
         self._vib_input.valueChanged.connect(slot_emit)
         self._rot_cold_input.valueChanged.connect(slot_emit)
         self._rot_hot_input.valueChanged.connect(slot_emit)
         self._hot_ratio.valueChanged.connect(slot_emit)
-        self._distribution_combobox.currentTextChanged.connect(slot_emit)
         self._distribution_combobox.currentTextChanged.connect(_combobox_callback)
-        _combobox_callback(self._distribution_combobox.currentText())
+        _combobox_callback()
 
 
 class ParaQWidget(QW.QWidget):

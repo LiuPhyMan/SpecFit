@@ -2,9 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="f7120a79-fcda-44ec-a48c-3c462182999f" name="Default" comment="">
-      <change beforePath="$PROJECT_DIR$/gui_spectra.py" beforeDir="false" afterPath="$PROJECT_DIR$/gui_spectra.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/qtwidget/spectra_widget.py" beforeDir="false" afterPath="$PROJECT_DIR$/qtwidget/spectra_widget.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/qtwidget/widgets.py" beforeDir="false" afterPath="$PROJECT_DIR$/qtwidget/widgets.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -15,11 +13,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf>
-      <file leaf-file-name="gui_spectra.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="gui_spectra.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/gui_spectra.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="574">
-              <caret line="513" lean-forward="true" selection-start-line="513" selection-end-line="513" />
+            <state relative-caret-position="338">
+              <caret line="464" lean-forward="true" selection-start-line="464" selection-end-line="464" />
               <folding>
                 <element signature="n#!!doc" />
                 <element signature="e#177#186#0" />
@@ -70,11 +68,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="spectra_widget.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="spectra_widget.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/qtwidget/spectra_widget.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="543">
-              <caret line="995" lean-forward="true" selection-start-line="995" selection-end-line="995" />
+            <state relative-caret-position="78">
+              <caret line="518" column="30" selection-start-line="518" selection-start-column="30" selection-end-line="518" selection-end-column="30" />
               <folding>
                 <element signature="n#!!doc" />
                 <element signature="e#47#176#1" />
@@ -106,6 +104,7 @@
                 <element signature="e#9149#9397#0" />
                 <element signature="e#8966#9494#0" />
                 <element signature="e#9066#9252#0" />
+                <element signature="e#9765#13469#0" />
                 <element signature="e#10189#10236#0" />
                 <element signature="e#11471#11726#0" />
                 <element signature="e#12024#12187#0" />
@@ -125,23 +124,15 @@
                 <element signature="e#16054#16159#0" />
                 <element signature="e#16190#16220#0" />
                 <element signature="e#16257#16398#0" />
-                <element signature="e#16447#22042#0" />
                 <element signature="e#16521#17189#0" />
                 <element signature="e#17220#17507#0" />
-                <element signature="e#17538#17777#0" />
                 <element signature="e#17814#18043#0" />
                 <element signature="e#18080#18634#0" />
                 <element signature="e#18671#19110#0" />
                 <element signature="e#19144#19445#0" />
                 <element signature="e#19479#19818#0" />
-                <element signature="e#19545#19772#0" />
                 <element signature="e#19858#20114#0" />
                 <element signature="e#20153#20384#0" />
-                <element signature="e#20419#22042#0" />
-                <element signature="e#20448#20472#0" />
-                <element signature="e#20525#21581#0" />
-                <element signature="e#20565#21045#0" />
-                <element signature="e#21100#21581#0" />
                 <element signature="e#22080#24632#0" />
                 <element signature="e#22154#22664#0" />
                 <element signature="e#22695#22912#0" />
@@ -236,8 +227,8 @@
         <option value="$PROJECT_DIR$/spectra/spectra.py" />
         <option value="$PROJECT_DIR$/spectra/__init__.py" />
         <option value="$PROJECT_DIR$/qtwidget/__init__.py" />
-        <option value="$PROJECT_DIR$/qtwidget/spectra_widget.py" />
         <option value="$PROJECT_DIR$/gui_spectra.py" />
+        <option value="$PROJECT_DIR$/qtwidget/spectra_widget.py" />
       </list>
     </option>
   </component>
@@ -416,10 +407,63 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/gui_spectra.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="338">
+          <caret line="464" lean-forward="true" selection-start-line="464" selection-end-line="464" />
+          <folding>
+            <element signature="n#!!doc" />
+            <element signature="e#177#186#0" />
+            <element signature="e#948#21785#0" />
+            <element signature="e#989#2225#0" />
+            <element signature="e#1022#1045#0" />
+            <element signature="e#2266#3065#0" />
+            <element signature="e#2458#3065#0" />
+            <element signature="e#3103#3172#0" />
+            <element signature="e#3210#3701#0" />
+            <element signature="e#3738#4464#0" />
+            <element signature="e#4502#7911#0" />
+            <element signature="e#4541#6243#0" />
+            <element signature="e#4744#5307#0" />
+            <element signature="e#4779#5307#0" />
+            <element signature="e#5454#5626#0" />
+            <element signature="e#6299#6375#0" />
+            <element signature="e#6421#6727#0" />
+            <element signature="e#6776#7096#0" />
+            <element signature="e#6967#7096#0" />
+            <element signature="e#7949#10229#0" />
+            <element signature="e#8575#8748#0" />
+            <element signature="e#9980#9982#0" />
+            <element signature="e#10267#10407#0" />
+            <element signature="e#10441#10502#0" />
+            <element signature="e#10579#11984#0" />
+            <element signature="e#11221#11512#0" />
+            <element signature="e#11647#11984#0" />
+            <element signature="e#12064#12743#0" />
+            <element signature="e#12221#12527#0" />
+            <element signature="e#12314#12430#0" />
+            <element signature="e#12776#19854#0" />
+            <element signature="e#13863#14065#0" />
+            <element signature="e#14292#16166#0" />
+            <element signature="e#14490#14793#0" />
+            <element signature="e#15939#16045#0" />
+            <element signature="e#19043#19211#0" />
+            <element signature="e#19897#20150#0" />
+            <element signature="e#19926#20086#0" />
+            <element signature="e#20193#21232#0" />
+            <element signature="e#21269#21785#0" />
+            <element signature="e#21821#22923#0" />
+            <element signature="e#21862#22923#0" />
+            <element signature="e#21862#21888#0" />
+            <element signature="e#22448#22470#0" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/qtwidget/spectra_widget.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="543">
-          <caret line="995" lean-forward="true" selection-start-line="995" selection-end-line="995" />
+        <state relative-caret-position="78">
+          <caret line="518" column="30" selection-start-line="518" selection-start-column="30" selection-end-line="518" selection-end-column="30" />
           <folding>
             <element signature="n#!!doc" />
             <element signature="e#47#176#1" />
@@ -451,6 +495,7 @@
             <element signature="e#9149#9397#0" />
             <element signature="e#8966#9494#0" />
             <element signature="e#9066#9252#0" />
+            <element signature="e#9765#13469#0" />
             <element signature="e#10189#10236#0" />
             <element signature="e#11471#11726#0" />
             <element signature="e#12024#12187#0" />
@@ -470,23 +515,15 @@
             <element signature="e#16054#16159#0" />
             <element signature="e#16190#16220#0" />
             <element signature="e#16257#16398#0" />
-            <element signature="e#16447#22042#0" />
             <element signature="e#16521#17189#0" />
             <element signature="e#17220#17507#0" />
-            <element signature="e#17538#17777#0" />
             <element signature="e#17814#18043#0" />
             <element signature="e#18080#18634#0" />
             <element signature="e#18671#19110#0" />
             <element signature="e#19144#19445#0" />
             <element signature="e#19479#19818#0" />
-            <element signature="e#19545#19772#0" />
             <element signature="e#19858#20114#0" />
             <element signature="e#20153#20384#0" />
-            <element signature="e#20419#22042#0" />
-            <element signature="e#20448#20472#0" />
-            <element signature="e#20525#21581#0" />
-            <element signature="e#20565#21045#0" />
-            <element signature="e#21100#21581#0" />
             <element signature="e#22080#24632#0" />
             <element signature="e#22154#22664#0" />
             <element signature="e#22695#22912#0" />
@@ -565,59 +602,6 @@
             <element signature="e#36875#37216#0" />
             <element signature="e#37252#37275#0" />
             <element signature="e#37315#37344#0" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/gui_spectra.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="574">
-          <caret line="513" lean-forward="true" selection-start-line="513" selection-end-line="513" />
-          <folding>
-            <element signature="n#!!doc" />
-            <element signature="e#177#186#0" />
-            <element signature="e#948#21785#0" />
-            <element signature="e#989#2225#0" />
-            <element signature="e#1022#1045#0" />
-            <element signature="e#2266#3065#0" />
-            <element signature="e#2458#3065#0" />
-            <element signature="e#3103#3172#0" />
-            <element signature="e#3210#3701#0" />
-            <element signature="e#3738#4464#0" />
-            <element signature="e#4502#7911#0" />
-            <element signature="e#4541#6243#0" />
-            <element signature="e#4744#5307#0" />
-            <element signature="e#4779#5307#0" />
-            <element signature="e#5454#5626#0" />
-            <element signature="e#6299#6375#0" />
-            <element signature="e#6421#6727#0" />
-            <element signature="e#6776#7096#0" />
-            <element signature="e#6967#7096#0" />
-            <element signature="e#7949#10229#0" />
-            <element signature="e#8575#8748#0" />
-            <element signature="e#9980#9982#0" />
-            <element signature="e#10267#10407#0" />
-            <element signature="e#10441#10502#0" />
-            <element signature="e#10579#11984#0" />
-            <element signature="e#11221#11512#0" />
-            <element signature="e#11647#11984#0" />
-            <element signature="e#12064#12743#0" />
-            <element signature="e#12221#12527#0" />
-            <element signature="e#12314#12430#0" />
-            <element signature="e#12776#19854#0" />
-            <element signature="e#13863#14065#0" />
-            <element signature="e#14292#16166#0" />
-            <element signature="e#14490#14793#0" />
-            <element signature="e#15939#16045#0" />
-            <element signature="e#19043#19211#0" />
-            <element signature="e#19897#20150#0" />
-            <element signature="e#19926#20086#0" />
-            <element signature="e#20193#21232#0" />
-            <element signature="e#21269#21785#0" />
-            <element signature="e#21821#22923#0" />
-            <element signature="e#21862#22923#0" />
-            <element signature="e#21862#21888#0" />
-            <element signature="e#22448#22470#0" />
           </folding>
         </state>
       </provider>
