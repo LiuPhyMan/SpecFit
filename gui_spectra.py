@@ -18,7 +18,7 @@ from spectra import OHSpectra
 from functools import partial
 from lmfit import Model
 from PyQt5 import QtWidgets as QW
-from PyQt5.QtGui import QIcon, QCursor, QFont
+from PyQt5.QtGui import QIcon, QCursor, QFont, QClipboard
 from PyQt5.QtCore import Qt
 from qtwidget import (SpectraPlot,
                       RangeQWidget,
@@ -45,10 +45,10 @@ class GUISpectra(QW.QMainWindow):
         # self.setGeometry(avGeom)
         self.cenWidget = QW.QWidget()
         self.setWindowTitle('Spectra sim v1.0')
-        self.setWindowIcon(QIcon('matplotlib_large.png'))
+        self.setWindowIcon(QIcon('gui_materials/matplotlib_large.png'))
         self.setCentralWidget(self.cenWidget)
 
-        self._spectra_plot = SpectraPlot(self.cenWidget, width=15, height=5)
+        self._spectra_plot = SpectraPlot(self.cenWidget, width=17, height=6)
         self._file_read = ReadFileQWidget()
         self._spectra_tree = SpectraFunc()
         self._wavelength_range = RangeQWidget()
@@ -161,8 +161,8 @@ class GUISpectra(QW.QMainWindow):
             self._exp_data = dict()
             self._exp_data['wavelength'] = xdata
             self._exp_data['intensity'] = ydata
-            self._wavelength_range.min_spinBox.setValue(xdata.min())
-            self._wavelength_range.max_spinBox.setValue(xdata.max())
+            self._wavelength_range.set_value(_min=xdata.min(),
+                                             _max=xdata.max())
             self._parameters_input._y_offset.set_value(x0=xdata.mean(),
                                                        k0=0,
                                                        c0=ydata.min(),
@@ -190,6 +190,7 @@ class GUISpectra(QW.QMainWindow):
         self._spectra_plot.figure.canvas.mpl_connect('motion_notify_event', self.mouse_move)
         self._file_read.TextChangedSignal.connect(_file_read_callback)
         self._parameters_input.valueChanged.connect(_parameters_input_callback)
+        self._wavelength_range.valueChanged.connect(_parameters_input_callback)
         self._resize_input.valueChanged.connect(lambda: _resize_plot(self._resize_input.value()))
         self._branch_tree.stateChanged.connect(_band_tree_callback)
         self._plot_buttons['add_sim'].clicked.connect(self.add_plot_sim)
@@ -377,20 +378,20 @@ class GUISpectra(QW.QMainWindow):
                           y_offset_c0=paras_dict['y_offset']['c0'],
                           y_offset_I0=paras_dict['y_offset']['I0'])
         temp_state = self._parameters_input._temperature.state()
-        fixed_variable = dict(Tvib=_state['temperature'] and temp_state['Tvib'],
-                              Trot_cold=_state['temperature'] and temp_state['Trot_cold'],
-                              Trot_hot=_state['temperature'] and temp_state['Trot_hot'],
-                              hot_ratio=_state['temperature'] and temp_state['hot_ratio'],
-                              fwhm_g=_state['fwhm'],
-                              fwhm_l=_state['fwhm'],
-                              x_offset_k0=self._parameters_input._x_offset.state()[1],
-                              x_offset_k1=self._parameters_input._x_offset.state()[2],
-                              x_offset_k2=self._parameters_input._x_offset.state()[3],
-                              x_offset_k3=self._parameters_input._x_offset.state()[4],
-                              y_offset_x0=self._parameters_input._y_offset.state()[0],
-                              y_offset_k0=self._parameters_input._y_offset.state()[1],
-                              y_offset_c0=self._parameters_input._y_offset.state()[2],
-                              y_offset_I0=self._parameters_input._y_offset.state()[3])
+        varied_variable = dict(Tvib=_state['temperature'] and temp_state[0],
+                               Trot_cold=_state['temperature'] and temp_state[1],
+                               Trot_hot=_state['temperature'] and temp_state[2],
+                               hot_ratio=_state['temperature'] and temp_state[3],
+                               fwhm_g=_state['fwhm'],
+                               fwhm_l=_state['fwhm'],
+                               x_offset_k0=self._parameters_input._x_offset.state()[1],
+                               x_offset_k1=self._parameters_input._x_offset.state()[2],
+                               x_offset_k2=self._parameters_input._x_offset.state()[3],
+                               x_offset_k3=self._parameters_input._x_offset.state()[4],
+                               y_offset_x0=False,
+                               y_offset_k0=self._parameters_input._y_offset.state()[1],
+                               y_offset_c0=self._parameters_input._y_offset.state()[2],
+                               y_offset_I0=self._parameters_input._y_offset.state()[3])
 
         range_dict = dict(Tvib=(300, 10000),
                           Trot_cold=(300, 10000),
@@ -409,7 +410,7 @@ class GUISpectra(QW.QMainWindow):
 
         for key in init_value:
             params[key].set(value=init_value[key])
-            params[key].set(vary=fixed_variable[key])
+            params[key].set(vary=varied_variable[key])
             params[key].set(min=range_dict[key][0], max=range_dict[key][1])
 
         self._sim_result = spectra_fit_model.fit(intens_in_range, params=params,
@@ -421,6 +422,10 @@ class GUISpectra(QW.QMainWindow):
         self._spectra_plot.set_sim_line(xdata=wave_in_range,
                                         ydata=self._sim_result.best_fit)
         self._parameters_input.set_value(**self._sim_result.values)
+        # QClipboard().setText('copy_trext')
+        cb = QW.QApplication.clipboard()
+        cb.clear(mode=cb.Clipboard)
+        cb.setText("Clipboard Text", mode=cb.Clipboard)
         self.show_report()
 
     def mouse_move(self, event):

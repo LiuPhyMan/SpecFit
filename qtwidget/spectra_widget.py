@@ -171,8 +171,7 @@ class XOffsetQGroupBox(QW.QGroupBox):
                     k2=self._spinBoxes['k2'].value(),
                     k3=self._spinBoxes['k3'].value())
 
-    def set_value(self, *, x0, k0, k1, k2, k3):
-        self._spinBoxes['x0'].setValue(x0)
+    def set_value(self, *, k0, k1, k2, k3):
         self._spinBoxes['k0'].setValue(k0)
         self._spinBoxes['k1'].setValue(k1)
         self._spinBoxes['k2'].setValue(k2)
@@ -598,8 +597,7 @@ class ParaQWidget(QW.QWidget):
                                     hot_ratio=kwargs['hot_ratio'])
         self._fwhm.set_value(fwhm_g=kwargs['fwhm_g'],
                              fwhm_l=kwargs['fwhm_l'])
-        self._x_offset.set_value(x0=kwargs['x_offset_x0'],
-                                 k0=kwargs['x_offset_k0'],
+        self._x_offset.set_value(k0=kwargs['x_offset_k0'],
                                  k1=kwargs['x_offset_k1'],
                                  k2=kwargs['x_offset_k2'],
                                  k3=kwargs['x_offset_k3'])
@@ -920,6 +918,7 @@ class SizeInput(QW.QDialog):
 
 
 class RangeQWidget(QW.QWidget):
+    valueChanged = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -934,28 +933,30 @@ class RangeQWidget(QW.QWidget):
         layout.addStretch(1)
         self.setLayout(layout)
         self.set_init_state()
+        self._set_slot()
 
     def set_init_state(self):
-        self.min_spinBox.setRange(200, 900)
-        self.min_spinBox.setDecimals(1)
-        self.min_spinBox.setSingleStep(0.1)
-        self.min_spinBox.setFont(QFont('Ubuntu', 13))
-        self.min_spinBox.setSuffix(' nm')
-        self.min_spinBox.setAlignment(Qt.AlignRight)
-        self.min_spinBox.setAccelerated(True)
+        for _box in (self.min_spinBox, self.max_spinBox):
+            _box.setRange(200, 900)
+            _box.setDecimals(1)
+            _box.setSingleStep(0.1)
+            _box.setFont(QFont('Ubuntu', 13))
+            _box.setSuffix(' nm')
+            _box.setAlignment(Qt.AlignRight)
+            _box.setAccelerated(True)
         self.min_spinBox.setValue(200)
-
-        self.max_spinBox.setRange(200, 900)
-        self.max_spinBox.setDecimals(1)
-        self.max_spinBox.setSingleStep(0.1)
-        self.max_spinBox.setFont(QFont('Ubuntu', 13))
-        self.max_spinBox.setSuffix(' nm')
-        self.max_spinBox.setAlignment(Qt.AlignRight)
-        self.max_spinBox.setAccelerated(True)
         self.max_spinBox.setValue(850)
 
     def value(self):
         return np.array([self.min_spinBox.value(), self.max_spinBox.value()], dtype=np.float)
+
+    def set_value(self, *, _min, _max):
+        self.min_spinBox.setValue(_min)
+        self.max_spinBox.setValue(_max)
+
+    def _set_slot(self):
+        self.min_spinBox.valueChanged.connect(lambda: self.valueChanged.emit())
+        self.max_spinBox.valueChanged.connect(lambda: self.valueChanged.emit())
 
 
 class ReportQWidget(QW.QWidget):
