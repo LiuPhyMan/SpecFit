@@ -167,6 +167,13 @@ class XOffsetQGroupBox(QW.QGroupBox):
                     k2=self._spinBoxes['k2'].value(),
                     k3=self._spinBoxes['k3'].value())
 
+    def set_value(self, *, x0, k0, k1, k2, k3):
+        self._spinBoxes['x0'].setValue(x0)
+        self._spinBoxes['k0'].setValue(k0)
+        self._spinBoxes['k1'].setValue(k1)
+        self._spinBoxes['k2'].setValue(k2)
+        self._spinBoxes['k3'].setValue(k3)
+
     def state(self):
         if self._combobox.currentText().lower() == 'constant':
             state = [1, 1, 0, 0, 0]
@@ -269,9 +276,8 @@ class YOffsetQGroupBox(QW.QGroupBox):
         self._set_slot()
         self.degree_combobox.setCurrentText('linear'.upper())
 
-    def para_form(self):  # TODO
-        para_form_dict = dict(incline='incline', even='even')
-        return para_form_dict[self.degree_combobox.currentText().lower()]
+    def para_form(self):
+        return self.degree_combobox.currentText().lower()
 
     def value(self):
         return dict(para_form=self.para_form(),
@@ -317,6 +323,7 @@ class YOffsetQGroupBox(QW.QGroupBox):
             self._spinBoxes[key].setValue(0)
         self._spinBoxes['k0'].setSingleStep(.002)
         self._spinBoxes['x0'].setValue(400)
+        self._spinBoxes['x0'].setSingleStep(1)
         self._spinBoxes['I0'].setValue(1)
 
     def _set_combobox(self):
@@ -326,34 +333,24 @@ class YOffsetQGroupBox(QW.QGroupBox):
             self.degree_combobox.addItem(key.upper())
 
     def _set_slot(self):
-
         def slot_emit():
             self.valueChanged.emit()
 
         def degree_combobox_callback():
-            _form = self.degree_combobox.currentText().lower()
-
             def _set_state(term, state):
                 self._spinBoxes[term].setEnabled(state)
                 self._label[term].setEnabled(state)
 
-            if _form in ('even'):
-                _set_state('x0', True)
-                _set_state('k0', False)
-                _set_state('c0', True)
-                _set_state('I0', True)
+            for _s, _l in zip(('x0', 'k0', 'c0', 'I0'), self.state()):
+                _set_state(_s, _l)
+            if self.degree_combobox.currentText().lower() == 'even':
                 self._spinBoxes['k0'].setValue(0)
-            elif _form in ('incline'):
-                _set_state('x0', True)
-                _set_state('k0', True)
-                _set_state('c0', True)
-                _set_state('I0', True)
+            slot_emit()
 
-        self.degree_combobox.currentTextChanged.connect(slot_emit)
+        self.degree_combobox.currentTextChanged.connect(degree_combobox_callback)
         for _key in self._spinBoxes:
             self._spinBoxes[_key].valueChanged.connect(slot_emit)
 
-        self.degree_combobox.currentTextChanged.connect(degree_combobox_callback)
         degree_combobox_callback()
 
 
@@ -984,8 +981,8 @@ if __name__ == '__main__':
     app = QW.QApplication.instance()
     if not app:
         app = QW.QApplication(sys.argv)
-    QW.QApplication.setStyle(QW.QStyleFactory.create('Fusion'))
-
+    # QW.QApplication.setStyle(QW.QStyleFactory.create('Fusion'))
+    app.setStyle(QW.QStyleFactory.create('Fusion'))
     window = QW.QMainWindow()
     cenWidget = QW.QWidget()
     window.setCentralWidget(cenWidget)

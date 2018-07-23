@@ -506,6 +506,7 @@ if __name__ == "__main__":
         app = QW.QApplication(sys.argv)
     else:
         app = QW.QApplication.instance()
+    app.setStyle(QW.QStyleFactory.create('Fusion'))
     window = GUISpectra()
     window.show()
     app.exec_()
