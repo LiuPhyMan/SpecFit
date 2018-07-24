@@ -198,40 +198,13 @@ class GUISpectra(QW.QMainWindow):
     def get_sim_data(self):
         spc_func = self._spectra_tree.spectra_func
         wv_range = self._wavelength_range.value()
-        # ----------------------------------------------------------------------------------- #
-        [Tvib, Trot_cold, Trot_hot, hot_ratio,
-         fwhm_g, fwhm_l,
-         x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
-         y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0] = self._parameters_input.value()
-        # ----------------------------------------------------------------------------------- #
-        if self._parameters_input._temperature.para_form() == 'one_Trot':
-            spc_func.set_maxwell_distribution(Tvib=Tvib, Trot=Trot_cold)
-        else:
-            spc_func.set_double_temperature_distribution(Tvib=Tvib, Trot_hot=Trot_hot,
-                                                         Trot_cold=Trot_cold,
-                                                         hot_ratio=hot_ratio)
-        spc_func.set_intensity()
+        slit_func = self._parameters_input._fwhm.para_form()
+        intensity_correct = self._evole_spectra(spc_func, wv_range, slit_func,
+                                                self._exp_data['wavelength'],
+                                                *self._parameters_input.value())
 
         wave_exp = self._exp_data['wavelength']
         wave_in_range = wave_exp[np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])]
-
-        self._x_correct_func = self._parameters_input._x_offset.correct_func(
-                **self._parameters_input._x_offset.value())
-        self._x_correct_reversed_func = self._parameters_input._x_offset.correct_func_reversed(
-                **self._parameters_input._x_offset.value())
-        self._y_correct_func = self._parameters_input._y_offset.correct_func(
-                **self._parameters_input._y_offset.value())
-
-        wave_range_corrected = self._x_correct_func(wv_range)
-        wavelength_corrected = self._x_correct_func(wave_exp)
-        kwargs = dict(wavelength_range=wave_range_corrected,
-                      waveLength_exp=wavelength_corrected,
-                      fwhm=dict(Gaussian=fwhm_g, Lorentzian=fwhm_l),
-                      slit_func=self._parameters_input._fwhm.para_form(),
-                      normalized=True)
-        wv_in_range_corrected, intensity_normalized = spc_func.get_extended_wavelength(**kwargs)
-        self._normalized_factor = spc_func.normalized_factor
-        intensity_correct = self._y_correct_func(wv_in_range_corrected, intensity_normalized)
         return wave_in_range, intensity_correct
 
     def add_plot_sim(self):
@@ -287,6 +260,48 @@ class GUISpectra(QW.QMainWindow):
                                                branch=branch, shown_index=shown_index,
                                                shown_J=shown_J)
 
+    def _evole_spectra(self, _spc_func, wv_range, slit_func_name,
+                       x, Tvib, Trot_cold, Trot_hot,
+                       hot_ratio, fwhm_g, fwhm_l,
+                       x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
+                       y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
+        # --------------------------------------------------------------------------------------- #
+        # tracer
+        _str_0 = 'Tvib={Tvib:4.0f} K, Trot={Trot:4.0f} K, '.format(Tvib=Tvib, Trot=Trot_cold)
+        _str_1 = 'fwhm_g={g:.3f} nm, fwhm_l={l:.3f} nm'.format(g=fwhm_g, l=fwhm_l)
+        print(_str_0 + _str_1)
+        # --------------------------------------------------------------------------------------- #
+        if self._parameters_input._temperature.para_form() == 'one_Trot':
+            _spc_func.set_maxwell_distribution(Tvib=Tvib, Trot=Trot_cold)
+        else:
+            _spc_func.set_double_temperature_distribution(Tvib=Tvib,
+                                                          Trot_cold=Trot_cold,
+                                                          Trot_hot=Trot_hot,
+                                                          hot_ratio=hot_ratio)
+
+        _spc_func.set_intensity()
+
+        x_correct_func_kwargs = dict(x0=x_offset_x0,
+                                     k0=x_offset_k0, k1=x_offset_k1,
+                                     k2=x_offset_k2, k3=x_offset_k3)
+        y_correct_func_kwargs = dict(x0=y_offset_x0,
+                                     k0=y_offset_k0,
+                                     c0=y_offset_c0,
+                                     I0=y_offset_I0)
+        x_correct_func = self._parameters_input._x_offset.correct_func(
+                **x_correct_func_kwargs)
+        y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_func_kwargs)
+        wave_range_corrected = x_correct_func(wv_range)
+        wavelength_corrected = x_correct_func(x)
+
+        _, intens = _spc_func.get_extended_wavelength(wavelength_range=wave_range_corrected,
+                                                      waveLength_exp=wavelength_corrected,
+                                                      slit_func=slit_func_name,
+                                                      fwhm={'Gaussian': fwhm_g,
+                                                            'Lorentzian': fwhm_l},
+                                                      normalized=True)
+        return y_correct_func(_, intens)
+
     def sim_exp(self):
         _spc_func = self._spectra_tree.spectra_func
 
@@ -311,47 +326,6 @@ class GUISpectra(QW.QMainWindow):
         slit_func_name = self._parameters_input.value()['fwhm']['para_form']
 
         Trot_para_form = paras_dict['temperature']['para_form']
-
-        def tracer(Tvib, Trot, fwhm_g, fwhm_l):
-            _str_0 = 'Tvib={Tvib:4.0f} K, Trot={Trot:4.0f} K, '.format(Tvib=Tvib, Trot=Trot)
-            _str_1 = 'fwhm_g={g:.3f} nm, fwhm_l={l:.3f} nm'.format(g=fwhm_g, l=fwhm_l)
-            print(_str_0 + _str_1)
-
-        def func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
-                 x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
-                 y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
-            tracer(Tvib, Trot_cold, fwhm_g, fwhm_l)
-
-            if Trot_para_form == 'one_Trot':
-                _spc_func.set_maxwell_distribution(Tvib=Tvib, Trot=Trot_cold)
-            else:
-                _spc_func.set_double_temperature_distribution(Tvib=Tvib,
-                                                              Trot_cold=Trot_cold,
-                                                              Trot_hot=Trot_hot,
-                                                              hot_ratio=hot_ratio)
-
-            _spc_func.set_intensity()
-
-            x_correct_func_kwargs = dict(x0=x_offset_x0,
-                                         k0=x_offset_k0, k1=x_offset_k1,
-                                         k2=x_offset_k2, k3=x_offset_k3)
-            y_correct_func_kwargs = dict(x0=y_offset_x0,
-                                         k0=y_offset_k0,
-                                         c0=y_offset_c0,
-                                         I0=y_offset_I0)
-            x_correct_func = self._parameters_input._x_offset.correct_func(
-                    **x_correct_func_kwargs)
-            y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_func_kwargs)
-            wave_range_corrected = x_correct_func(wv_range)
-            wavelength_corrected = x_correct_func(x)
-
-            _, intens = _spc_func.get_extended_wavelength(wavelength_range=wave_range_corrected,
-                                                          waveLength_exp=wavelength_corrected,
-                                                          slit_func=slit_func_name,
-                                                          fwhm={'Gaussian': fwhm_g,
-                                                                'Lorentzian': fwhm_l},
-                                                          normalized=True)
-            return y_correct_func(_, intens)
 
         # build model
         spectra_fit_model = Model(func)

@@ -632,15 +632,15 @@ class ParaQWidget(QW.QWidget):
                 self._temperature.value()['hot_ratio'],
                 self._fwhm.value()['fwhm_g'],
                 self._fwhm.value()['fwhm_l'],
-                self._x_offset.value()['x_offset_x0'],
-                self._x_offset.value()['x_offset_k0'],
-                self._x_offset.value()['x_offset_k1'],
-                self._x_offset.value()['x_offset_k2'],
-                self._x_offset.value()['x_offset_k3'],
-                self._y_offset.value()['y_offset_x0'],
-                self._y_offset.value()['y_offset_k0'],
-                self._y_offset.value()['y_offset_c0'],
-                self._y_offset.value()['y_offset_I0']]
+                self._x_offset.value()['x0'],
+                self._x_offset.value()['k0'],
+                self._x_offset.value()['k1'],
+                self._x_offset.value()['k2'],
+                self._x_offset.value()['k3'],
+                self._y_offset.value()['x0'],
+                self._y_offset.value()['k0'],
+                self._y_offset.value()['c0'],
+                self._y_offset.value()['I0']]
 
     def set_value(self, **kwargs):
         self._temperature.set_value(Tvib=kwargs['Tvib'],
