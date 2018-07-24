@@ -94,14 +94,10 @@ class GUISpectra(QW.QMainWindow):
 
     def _set_toolbar(self):
         self.toolbar = self.addToolBar('toolbar')
-
         save_action = QW.QAction('Save', self)
-        save_action.setFont(QFont('Ubuntu', 15))
         report_action = QW.QAction('Report', self)
+        save_action.setFont(QFont('Ubuntu', 15))
         report_action.setFont(QFont('Ubuntu', 15))
-        resize_action = QW.QAction('resize', self)
-        resize_action.setFont(QFont('Ubuntu', 15))
-
         self.toolbar.addAction(save_action)
         self.toolbar.addAction(report_action)
         report_action.triggered.connect(self.show_report)
@@ -201,46 +197,41 @@ class GUISpectra(QW.QMainWindow):
 
     def get_sim_data(self):
         spc_func = self._spectra_tree.spectra_func
-        paras_dict = self._parameters_input.value()
-        Tvib = paras_dict['temperature']['Tvib']
-        Trot_cold = paras_dict['temperature']['Trot_cold']
-        Trot_hot = paras_dict['temperature']['Trot_hot']
-        hot_ratio = paras_dict['temperature']['hot_ratio']
         wv_range = self._wavelength_range.value()
-        fwhm_g = paras_dict['fwhm']['fwhm_g']
-        fwhm_l = paras_dict['fwhm']['fwhm_l']
-
-        if paras_dict['temperature']['para_form'] == 'one_Trot':
+        # ----------------------------------------------------------------------------------- #
+        [Tvib, Trot_cold, Trot_hot, hot_ratio,
+         fwhm_g, fwhm_l,
+         x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
+         y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0] = self._parameters_input.value()
+        # ----------------------------------------------------------------------------------- #
+        if self._parameters_input._temperature.para_form() == 'one_Trot':
             spc_func.set_maxwell_distribution(Tvib=Tvib, Trot=Trot_cold)
         else:
             spc_func.set_double_temperature_distribution(Tvib=Tvib, Trot_hot=Trot_hot,
-                                                         Trot_cold=Trot_cold, hot_ratio=hot_ratio)
+                                                         Trot_cold=Trot_cold,
+                                                         hot_ratio=hot_ratio)
         spc_func.set_intensity()
+
         wave_exp = self._exp_data['wavelength']
         wave_in_range = wave_exp[np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])]
-        self._x_correct_func = self._parameters_input._x_offset.correct_func(**paras_dict[
-            'x_offset'])
+
+        self._x_correct_func = self._parameters_input._x_offset.correct_func(
+                **self._parameters_input._x_offset.value())
         self._x_correct_reversed_func = self._parameters_input._x_offset.correct_func_reversed(
-                **paras_dict['x_offset'])
+                **self._parameters_input._x_offset.value())
+        self._y_correct_func = self._parameters_input._y_offset.correct_func(
+                **self._parameters_input._y_offset.value())
+
         wave_range_corrected = self._x_correct_func(wv_range)
         wavelength_corrected = self._x_correct_func(wave_exp)
-
         kwargs = dict(wavelength_range=wave_range_corrected,
                       waveLength_exp=wavelength_corrected,
                       fwhm=dict(Gaussian=fwhm_g, Lorentzian=fwhm_l),
-                      slit_func=paras_dict['fwhm']['para_form'],
+                      slit_func=self._parameters_input._fwhm.para_form(),
                       normalized=True)
-
         wv_in_range_corrected, intensity_normalized = spc_func.get_extended_wavelength(**kwargs)
         self._normalized_factor = spc_func.normalized_factor
-        self._y_correct_func = self._parameters_input._y_offset.correct_func(
-                **paras_dict['y_offset'])
         intensity_correct = self._y_correct_func(wv_in_range_corrected, intensity_normalized)
-        ##
-        # if not self._normalized_groupbox.is_nomalized():
-        #     intensity_correct = intensity_correct * self._normalized_groupbox.value()
-        # print(self._normalized_factor)
-        ##
         return wave_in_range, intensity_correct
 
     def add_plot_sim(self):
@@ -423,9 +414,11 @@ class GUISpectra(QW.QMainWindow):
                                         ydata=self._sim_result.best_fit)
         self._parameters_input.set_value(**self._sim_result.values)
         # QClipboard().setText('copy_trext')
-        cb = QW.QApplication.clipboard()
-        cb.clear(mode=cb.Clipboard)
-        cb.setText("Clipboard Text", mode=cb.Clipboard)
+        # cb = QW.QApplication.clipboard()
+        # cb.clear(mode=cb.Clipboard)
+        # cb.setText("Clipboard Text", mode=cb.Clipboard)
+        self._goodness_of_fit.set_value(p_data=self._sim_result.best_fit,
+                                        o_data=self._sim_result.data)
         self.show_report()
 
     def mouse_move(self, event):
@@ -455,8 +448,25 @@ class GUISpectra(QW.QMainWindow):
         self.button_layout.addLayout(sub_layout)
         self.button_layout.addStretch(1)
 
+    def simulated_result_to_copy(self):
+        def get_print_str(param, _format):
+            value = param.value
+            if param.vary:
+                return '\n{v:{frmt}} {err:{frmt}}'.format(v=value, err=param.stderr,
+                                                          frmt=_format)
+            else:
+                return '\n{v:{frmt}} [fixed]'.format(value=value, frmt=_format)
+
+        _str = ''
+        _str += get_print_str(self._sim_result.params['Tvib'], '.0f')
+        _str += get_print_str(self._sim_result.params['Trot_cold'], '.0f')
+        _str += get_print_str(self._sim_result.params['fwhm_g'], '.3f')
+        _str += get_print_str(self._sim_result.params['fwhm_l'], '.3f')
+        return _str
+
     def show_report(self):
         _str = '' if self._sim_result is None else self._sim_result.fit_report()
+        _str = self.simulated_result()
         msg = QW.QMessageBox()
         msg.setIcon(QW.QMessageBox.Information)
         current_time = time.strftime('%Y/%m/%d %H:%M:%S')

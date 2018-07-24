@@ -38,6 +38,151 @@ class _DefaultQDoubleSpinBox(QW.QDoubleSpinBox):
         self.setAlignment(Qt.AlignRight)
 
 
+class TemperatureQGroupBox(QW.QGroupBox):
+    valueChanged = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setCheckable(True)
+        self.setChecked(True)
+        self.setTitle('Temperature')
+        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
+
+        self._vib_input = QW.QDoubleSpinBox()
+        self._rot_cold_input = QW.QDoubleSpinBox()
+        self._rot_hot_input = QW.QDoubleSpinBox()
+        self._hot_ratio = QW.QDoubleSpinBox()
+        self._distribution_combobox = QW.QComboBox()
+        self._labels = dict()
+        self._set_labels()
+        self._set_vib()
+        self._set_rot()
+        self._set_combobox()
+        self._set_hot_ratio()
+        self._set_layout()
+        self._set_format()
+        self._set_slot()
+
+    def para_form(self):
+        if self._distribution_combobox.currentText() == 'one_Trot':
+            return 'one_Trot'
+        else:
+            return 'two_Trot'
+
+    def value(self):
+        return dict(para_form=self._distribution_combobox.currentText(),
+                    Tvib=self._vib_input.value(),
+                    Trot_cold=self._rot_cold_input.value(),
+                    Trot_hot=self._rot_hot_input.value(),
+                    hot_ratio=self._hot_ratio.value())
+
+    def set_value(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
+        self._vib_input.setValue(Tvib)
+        self._rot_cold_input.setValue(Trot_cold)
+        self._rot_hot_input.setValue(Trot_hot)
+        self._hot_ratio.setValue(hot_ratio)
+
+    def state(self):
+        if self.para_form() == 'one_Trot':
+            return [True, True, False, False]
+        else:
+            return [True, True, True, True]
+
+    def is_variable_state(self):
+        if self.isChecked():
+            return self.state()
+        else:
+            return [False for _ in self.state()]
+
+    def _set_labels(self):
+        self._labels['Tvib'] = BetterQLabel('Tvib')
+        self._labels['Trot_cold'] = BetterQLabel('Trot_cold')
+        self._labels['Trot_hot'] = BetterQLabel('Trot_hot  ')
+        self._labels['hot_ratio'] = BetterQLabel('hot_ratio')
+
+    def _set_layout(self):
+        _layout = QW.QGridLayout()
+        _layout.addWidget(self._labels['Tvib'], 0, 0)
+        _layout.addWidget(self._vib_input, 0, 1)
+        _layout.addWidget(self._labels['Trot_cold'], 1, 0)
+        _layout.addWidget(self._rot_cold_input, 1, 1)
+        _layout.addWidget(self._labels['Trot_hot'], 2, 0)
+        _layout.addWidget(self._rot_hot_input, 2, 1)
+        _layout.addWidget(self._labels['hot_ratio'], 3, 0)
+        _layout.addWidget(self._hot_ratio, 3, 1)
+        _layout.addWidget(self._distribution_combobox, 4, 1)
+        self.setLayout(_layout)
+
+    def _set_format(self):
+        for key in ('Tvib', 'Trot_cold', 'Trot_hot', 'hot_ratio'):
+            self._labels[key].setStyleSheet(_LABEL_STYLESHEET)
+        self._vib_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
+        self._rot_cold_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
+        self._rot_hot_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
+        self._rot_hot_input.setAccelerated(True)
+        self._hot_ratio.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
+
+    def _set_vib(self):
+        self._vib_input.setFont(QFont('Ubuntu', 11))
+        self._vib_input.setAlignment(Qt.AlignRight)
+        self._vib_input.setRange(300, 10000)
+        self._vib_input.setSingleStep(10)
+        self._vib_input.setValue(3000)
+        self._vib_input.setSuffix(' K')
+        self._vib_input.setDecimals(0)
+
+    def _set_rot(self):
+        for _ in (self._rot_hot_input, self._rot_cold_input):
+            _.setFont(QFont('Ubuntu', 11))
+            _.setAlignment(Qt.AlignRight)
+            _.setRange(300, 20000)
+            _.setSingleStep(10)
+            _.setValue(3000)
+            _.setSuffix(' K')
+            _.setDecimals(0)
+        self._rot_hot_input.setSingleStep(50)
+
+    def _set_hot_ratio(self):
+        self._hot_ratio.setFont(QFont('Ubuntu', 11))
+        self._hot_ratio.setAlignment(Qt.AlignRight)
+        self._hot_ratio.setRange(0, 1)
+        self._hot_ratio.setSingleStep(0.05)
+        self._hot_ratio.setValue(0.5)
+        self._hot_ratio.setDecimals(2)
+
+    def _set_combobox(self):
+        self._distribution_combobox.setFont(_DEFAULT_FONT)
+        self._distribution_combobox.setCursor(Qt.PointingHandCursor)
+        self._distribution_combobox.addItem('one_Trot')
+        self._distribution_combobox.addItem('two_Trot')
+
+    def _set_slot(self):
+        def slot_emit():
+            self.valueChanged.emit()
+
+        def _combobox_callback():
+            self._labels['Tvib'].setEnabled(self.state()[0])
+            self._labels['Trot_cold'].setEnabled(self.state()[1])
+            self._labels['Trot_hot'].setEnabled(self.state()[2])
+            self._labels['hot_ratio'].setEnabled(self.state()[3])
+            self._vib_input.setEnabled(self.state()[0])
+            self._rot_cold_input.setEnabled(self.state()[1])
+            self._rot_hot_input.setEnabled(self.state()[2])
+            self._hot_ratio.setEnabled(self.state()[3])
+            if self._distribution_combobox.currentText() == 'one_Trot':
+                self._labels['Trot_cold'].setText('Trot')
+            elif self._distribution_combobox.currentText() == 'two_Trot':
+                self._labels['Trot_cold'].setText('Trot_cold')
+            slot_emit()
+
+        self._vib_input.valueChanged.connect(slot_emit)
+        self._rot_cold_input.valueChanged.connect(slot_emit)
+        self._rot_hot_input.valueChanged.connect(slot_emit)
+        self._hot_ratio.valueChanged.connect(slot_emit)
+        self._distribution_combobox.currentTextChanged.connect(_combobox_callback)
+        _combobox_callback()
+
+
 class FWHMQGroupBox(QW.QGroupBox):
     valueChanged = pyqtSignal()
 
@@ -71,6 +216,20 @@ class FWHMQGroupBox(QW.QGroupBox):
         return dict(para_form=self.para_form(),
                     fwhm_g=self.fwhm_g_part.value(),
                     fwhm_l=self.fwhm_l_part.value())
+
+    def state(self):
+        if self.para_form() == 'Gaussian':
+            return [True, False]
+        elif self.para_form() == 'Lorentzian':
+            return [False, True]
+        elif self.para_form() == 'Voigt':
+            return [True, True]
+
+    def is_variable_state(self):
+        if self.isChecked():
+            return self.state()
+        else:
+            return [False for _ in self.state()]
 
     def set_value(self, *, fwhm_g, fwhm_l):
         self.fwhm_g_part.setValue(fwhm_g)
@@ -171,7 +330,8 @@ class XOffsetQGroupBox(QW.QGroupBox):
                     k2=self._spinBoxes['k2'].value(),
                     k3=self._spinBoxes['k3'].value())
 
-    def set_value(self, *, k0, k1, k2, k3):
+    def set_value(self, *, x0, k0, k1, k2, k3):
+        self._spinBoxes['x0'].setValue(x0)
         self._spinBoxes['k0'].setValue(k0)
         self._spinBoxes['k1'].setValue(k1)
         self._spinBoxes['k2'].setValue(k2)
@@ -187,6 +347,12 @@ class XOffsetQGroupBox(QW.QGroupBox):
         if self._combobox.currentText().lower() == 'cubic':
             state = [1, 1, 1, 1, 1]
         return [True if _ else False for _ in state]
+
+    def is_variable_state(self):
+        if self.isChecked():
+            return [False] + self.state()[1:]
+        else:
+            return [False for _ in self.state()]
 
     def correct_func(self, **kwargs):
         x0 = kwargs['x0']
@@ -206,8 +372,7 @@ class XOffsetQGroupBox(QW.QGroupBox):
         if self._combobox.currentText() == 'constant'.upper():
             return lambda x: x - kwargs['k0']
         if self._combobox.currentText() == 'linear'.upper():
-            return lambda x: (x - kwargs['k0'] + kwargs['k1'] * x0) / \
-                             (kwargs['k1'] + 1)
+            return lambda x: (x - kwargs['k0'] + kwargs['k1'] * x0) / (kwargs['k1'] + 1)
 
     def _set_layout(self):
         layout = QW.QVBoxLayout()
@@ -295,6 +460,12 @@ class YOffsetQGroupBox(QW.QGroupBox):
         if self.degree_combobox.currentText().lower() == 'incline':
             return [True, True, True, True]
 
+    def is_variable_state(self):
+        if self.isChecked():
+            return [False] + self.state()[1:]
+        else:
+            return [False for _ in self.state()]
+
     def set_value(self, *, x0, k0, c0, I0):
         self._spinBoxes['x0'].setValue(x0)
         self._spinBoxes['k0'].setValue(k0)
@@ -372,6 +543,12 @@ class GoodnessOfFit(QW.QGroupBox):
         layout.addRow(BetterQLabel('ChiSquared'), self._label_chisq)
         self.setLayout(layout)
 
+    def r2(self, *, p_data, o_data):
+        y_mean = np.mean(o_data)
+        ss_tot = np.sum((o_data - y_mean) ** 2)
+        ss_res = np.sum((o_data - p_data) ** 2)
+        return 1 - ss_res / ss_tot
+
     def _set_labels(self):
         self._label_r2 = BetterQLabel()
         font = QFont('Ubuntu', 13)
@@ -382,8 +559,9 @@ class GoodnessOfFit(QW.QGroupBox):
         self._label_chisq.setFont(font)
         self._label_chisq.setText('0.0000')
 
-    def set_value(self, value):
-        self._label.setText("{:.6f}".format(value))
+    def set_value(self, *, p_data, o_data):
+        value = self.r2(p_data=p_data, o_data=o_data)
+        self._label_r2.setText("{:.6f}".format(value))
 
 
 class NormalizedQGroupBox(QW.QGroupBox):
@@ -415,157 +593,16 @@ class NormalizedQGroupBox(QW.QGroupBox):
         self.setLayout(layout)
 
 
-class TemperatureQGroupBox(QW.QGroupBox):
-    valueChanged = pyqtSignal()
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setCheckable(True)
-        self.setChecked(True)
-        self.setTitle('Temperature')
-        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
-
-        self._vib_input = QW.QDoubleSpinBox()
-        self._rot_cold_input = QW.QDoubleSpinBox()
-        self._rot_hot_input = QW.QDoubleSpinBox()
-        self._hot_ratio = QW.QDoubleSpinBox()
-        self._distribution_combobox = QW.QComboBox()
-        self._labels = dict()
-        self._set_labels()
-        self._set_vib()
-        self._set_rot()
-        self._set_combobox()
-        self._set_hot_ratio()
-        self._set_layout()
-        self._set_format()
-        self._set_slot()
-
-    def value(self):
-        return dict(para_form=self._distribution_combobox.currentText(),
-                    Tvib=self._vib_input.value(),
-                    Trot_cold=self._rot_cold_input.value(),
-                    Trot_hot=self._rot_hot_input.value(),
-                    hot_ratio=self._hot_ratio.value())
-
-    def set_value(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
-        self._vib_input.setValue(Tvib)
-        self._rot_cold_input.setValue(Trot_cold)
-        self._rot_hot_input.setValue(Trot_hot)
-        self._hot_ratio.setValue(hot_ratio)
-
-    def state(self):
-        if self._distribution_combobox.currentText() == 'one_Trot':
-            return [True, True, False, False]
-        else:
-            return [True, True, True, True]
-
-    def _set_labels(self):
-        self._labels['Tvib'] = BetterQLabel('Tvib')
-        self._labels['Trot_cold'] = BetterQLabel('Trot_cold')
-        self._labels['Trot_hot'] = BetterQLabel('Trot_hot  ')
-        self._labels['hot_ratio'] = BetterQLabel('hot_ratio')
-
-    def _set_layout(self):
-        _layout = QW.QGridLayout()
-        _layout.addWidget(self._labels['Tvib'], 0, 0)
-        _layout.addWidget(self._vib_input, 0, 1)
-        _layout.addWidget(self._labels['Trot_cold'], 1, 0)
-        _layout.addWidget(self._rot_cold_input, 1, 1)
-        _layout.addWidget(self._labels['Trot_hot'], 2, 0)
-        _layout.addWidget(self._rot_hot_input, 2, 1)
-        _layout.addWidget(self._labels['hot_ratio'], 3, 0)
-        _layout.addWidget(self._hot_ratio, 3, 1)
-        _layout.addWidget(self._distribution_combobox, 4, 1)
-        self.setLayout(_layout)
-
-    def _set_format(self):
-        for key in ('Tvib', 'Trot_cold', 'Trot_hot', 'hot_ratio'):
-            self._labels[key].setStyleSheet(_LABEL_STYLESHEET)
-        self._vib_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-        self._rot_cold_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-        self._rot_hot_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-        self._rot_hot_input.setAccelerated(True)
-        self._hot_ratio.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-
-    def _set_vib(self):
-        self._vib_input.setFont(QFont('Ubuntu', 11))
-        self._vib_input.setAlignment(Qt.AlignRight)
-        self._vib_input.setRange(300, 10000)
-        self._vib_input.setSingleStep(10)
-        self._vib_input.setValue(3000)
-        self._vib_input.setSuffix(' K')
-        self._vib_input.setDecimals(0)
-
-    def _set_rot(self):
-        for _ in (self._rot_hot_input, self._rot_cold_input):
-            _.setFont(QFont('Ubuntu', 11))
-            _.setAlignment(Qt.AlignRight)
-            _.setRange(300, 20000)
-            _.setSingleStep(10)
-            _.setValue(3000)
-            _.setSuffix(' K')
-            _.setDecimals(0)
-        self._rot_hot_input.setSingleStep(50)
-
-    def _set_hot_ratio(self):
-        self._hot_ratio.setFont(QFont('Ubuntu', 11))
-        self._hot_ratio.setAlignment(Qt.AlignRight)
-        self._hot_ratio.setRange(0, 1)
-        self._hot_ratio.setSingleStep(0.05)
-        self._hot_ratio.setValue(0.5)
-        self._hot_ratio.setDecimals(2)
-
-    def _set_combobox(self):
-        self._distribution_combobox.setFont(_DEFAULT_FONT)
-        self._distribution_combobox.setCursor(Qt.PointingHandCursor)
-        self._distribution_combobox.addItem('one_Trot')
-        self._distribution_combobox.addItem('two_Trot')
-
-    def _set_slot(self):
-        def slot_emit():
-            self.valueChanged.emit()
-
-        def _combobox_callback():
-            self._labels['Tvib'].setEnabled(self.state()[0])
-            self._labels['Trot_cold'].setEnabled(self.state()[1])
-            self._labels['Trot_hot'].setEnabled(self.state()[2])
-            self._labels['hot_ratio'].setEnabled(self.state()[3])
-            self._vib_input.setEnabled(self.state()[0])
-            self._rot_cold_input.setEnabled(self.state()[1])
-            self._rot_hot_input.setEnabled(self.state()[2])
-            self._hot_ratio.setEnabled(self.state()[3])
-            if self._distribution_combobox.currentText() == 'one_Trot':
-                self._labels['Trot_cold'].setText('Trot')
-            elif self._distribution_combobox.currentText() == 'two_Trot':
-                self._labels['Trot_cold'].setText('Trot_cold')
-            slot_emit()
-
-        self._vib_input.valueChanged.connect(slot_emit)
-        self._rot_cold_input.valueChanged.connect(slot_emit)
-        self._rot_hot_input.valueChanged.connect(slot_emit)
-        self._hot_ratio.valueChanged.connect(slot_emit)
-        self._distribution_combobox.currentTextChanged.connect(_combobox_callback)
-        _combobox_callback()
-
-
 class ParaQWidget(QW.QWidget):
     valueChanged = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
-        self.layout = QW.QGridLayout()
         self._temperature = TemperatureQGroupBox()
         self._fwhm = FWHMQGroupBox()
         self._x_offset = XOffsetQGroupBox()
         self._y_offset = YOffsetQGroupBox()
-
-        self.layout.addWidget(self._temperature, 0, 0)
-        self.layout.addWidget(self._fwhm, 0, 1)
-        self.layout.addWidget(self._x_offset, 0, 2)
-        self.layout.addWidget(self._y_offset, 0, 3)
-
-        self.setLayout(self.layout)
+        self._set_layout()
         self._set_slot()
 
     def state(self):
@@ -573,6 +610,10 @@ class ParaQWidget(QW.QWidget):
                     fwhm=self._fwhm.isChecked(),
                     x_offset=self._x_offset.isChecked(),
                     y_offset=self._y_offset.isChecked())
+
+    def is_variable_state(self):
+        return self._temperature.is_variable_state() + self._fwhm.is_variable_state() + \
+               self._x_offset.is_variable_state() + self._y_offset.is_variable_state()
 
     def value(self):
         r"""
@@ -585,10 +626,21 @@ class ParaQWidget(QW.QWidget):
         y_offset :
             para_form, x0, k0, c0, I0
         """
-        return dict(temperature=self._temperature.value(),
-                    fwhm=self._fwhm.value(),
-                    x_offset=self._x_offset.value(),
-                    y_offset=self._y_offset.value())
+        return [self._temperature.value()['Tvib'],
+                self._temperature.value()['Trot_cold'],
+                self._temperature.value()['Trot_hot'],
+                self._temperature.value()['hot_ratio'],
+                self._fwhm.value()['fwhm_g'],
+                self._fwhm.value()['fwhm_l'],
+                self._x_offset.value()['x_offset_x0'],
+                self._x_offset.value()['x_offset_k0'],
+                self._x_offset.value()['x_offset_k1'],
+                self._x_offset.value()['x_offset_k2'],
+                self._x_offset.value()['x_offset_k3'],
+                self._y_offset.value()['y_offset_x0'],
+                self._y_offset.value()['y_offset_k0'],
+                self._y_offset.value()['y_offset_c0'],
+                self._y_offset.value()['y_offset_I0']]
 
     def set_value(self, **kwargs):
         self._temperature.set_value(Tvib=kwargs['Tvib'],
@@ -605,6 +657,14 @@ class ParaQWidget(QW.QWidget):
                                  k0=kwargs['y_offset_k0'],
                                  c0=kwargs['y_offset_c0'],
                                  I0=kwargs['y_offset_I0'])
+
+    def _set_layout(self):
+        self.layout = QW.QGridLayout()
+        self.layout.addWidget(self._temperature, 0, 0)
+        self.layout.addWidget(self._fwhm, 0, 1)
+        self.layout.addWidget(self._x_offset, 0, 2)
+        self.layout.addWidget(self._y_offset, 0, 3)
+        self.setLayout(self.layout)
 
     def _set_slot(self):
         def slot_emit():
@@ -718,7 +778,7 @@ class ReadFileQWidget(QW.QWidget):
         super().__init__(parent)
         self._entry = QW.QLineEdit()
         self._entry.setFont(_DEFAULT_FONT)
-        self._entry.setFixedWidth(600)
+        self._entry.setFixedWidth(1000)
         self._browse_button = BetterButton('Browse')
         self._browse_button.clicked.connect(self._get_open_file_name)
         self._set_layout()
