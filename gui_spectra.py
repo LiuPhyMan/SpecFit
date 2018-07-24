@@ -304,66 +304,36 @@ class GUISpectra(QW.QMainWindow):
 
     def sim_exp(self):
         _spc_func = self._spectra_tree.spectra_func
-
-        paras_dict = self._parameters_input.value()
-        Tvib_init = paras_dict['temperature']['Tvib']
-        Trot_cold_init = paras_dict['temperature']['Trot_cold']
-        Trot_hot_init = paras_dict['temperature']['Trot_hot']
-        hot_ratio_init = paras_dict['temperature']['hot_ratio']
-        fwhm_g_init = paras_dict['fwhm']['fwhm_g']
-        fwhm_l_init = paras_dict['fwhm']['fwhm_l']
-
         wave_exp = self._exp_data['wavelength']
         intens_exp = self._exp_data['intensity']
         wv_range = self._wavelength_range.value()
-
         _bool = np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])
         wave_in_range = wave_exp[_bool]
         intens_in_range = intens_exp[_bool]
         #
-        _state = self._parameters_input.state()
-        x_offset_x0 = self._parameters_input.value()['x_offset']['x0']
-        slit_func_name = self._parameters_input.value()['fwhm']['para_form']
+        slit_func_name = self._parameters_input._fwhm.para_form()
 
-        Trot_para_form = paras_dict['temperature']['para_form']
+        def func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
+                 x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
+                 y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
+            return self._evole_spectra(_spc_func, wv_range, slit_func_name,
+                                       x, Tvib, Trot_cold, Trot_hot, hot_ratio,
+                                       fwhm_g, fwhm_l,
+                                       x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2,
+                                       x_offset_k3,
+                                       y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0)
 
         # build model
         spectra_fit_model = Model(func)
         params = spectra_fit_model.make_params()
-        init_value = dict(Tvib=Tvib_init,
-                          Trot_hot=Trot_hot_init, Trot_cold=Trot_cold_init,
-                          hot_ratio=hot_ratio_init,
-                          fwhm_g=fwhm_g_init, fwhm_l=fwhm_l_init,
-                          x_offset_k0=paras_dict['x_offset']['k0'],
-                          x_offset_k1=paras_dict['x_offset']['k1'],
-                          x_offset_k2=paras_dict['x_offset']['k2'],
-                          x_offset_k3=paras_dict['x_offset']['k3'],
-                          y_offset_x0=paras_dict['y_offset']['x0'],
-                          y_offset_k0=paras_dict['y_offset']['k0'],
-                          y_offset_c0=paras_dict['y_offset']['c0'],
-                          y_offset_I0=paras_dict['y_offset']['I0'])
-        temp_state = self._parameters_input._temperature.state()
-        varied_variable = dict(Tvib=_state['temperature'] and temp_state[0],
-                               Trot_cold=_state['temperature'] and temp_state[1],
-                               Trot_hot=_state['temperature'] and temp_state[2],
-                               hot_ratio=_state['temperature'] and temp_state[3],
-                               fwhm_g=_state['fwhm'],
-                               fwhm_l=_state['fwhm'],
-                               x_offset_k0=self._parameters_input._x_offset.state()[1],
-                               x_offset_k1=self._parameters_input._x_offset.state()[2],
-                               x_offset_k2=self._parameters_input._x_offset.state()[3],
-                               x_offset_k3=self._parameters_input._x_offset.state()[4],
-                               y_offset_x0=False,
-                               y_offset_k0=self._parameters_input._y_offset.state()[1],
-                               y_offset_c0=self._parameters_input._y_offset.state()[2],
-                               y_offset_I0=self._parameters_input._y_offset.state()[3])
-
+        init_value = self._parameters_input.value()
         range_dict = dict(Tvib=(300, 10000),
                           Trot_cold=(300, 10000),
                           Trot_hot=(300, 20000),
                           hot_ratio=(0, 1),
                           fwhm_g=(0, 1),
                           fwhm_l=(0, 1),
+                          x_offset_x0=(0, 1000),
                           x_offset_k0=(-np.inf, np.inf),
                           x_offset_k1=(-np.inf, np.inf),
                           x_offset_k2=(-np.inf, np.inf),
@@ -372,11 +342,14 @@ class GUISpectra(QW.QMainWindow):
                           y_offset_k0=(-np.inf, np.inf),
                           y_offset_c0=(-np.inf, np.inf),
                           y_offset_I0=(0, np.inf))
-
-        for key in init_value:
-            params[key].set(value=init_value[key])
-            params[key].set(vary=varied_variable[key])
-            params[key].set(min=range_dict[key][0], max=range_dict[key][1])
+        for _i, _key in enumerate(('Tvib', 'Trot_cold', 'Trot_hot', 'hot_ratio',
+                                   'fwhm_g', 'fwhm_l',
+                                   'x_offset_x0', 'x_offset_k0', 'x_offset_k1', 'x_offset_k2',
+                                   'x_offset_k3',
+                                   'y_offset_x0', 'y_offset_k0', 'y_offset_c0', 'y_offset_I0')):
+            params[_key].set(min=range_dict[_key][0], max=range_dict[_key][1])
+            params[_key].set(vary=self._parameters_input.is_variable_state()[_i])
+            params[_key].set(value=init_value[_i])
 
         self._sim_result = spectra_fit_model.fit(intens_in_range, params=params,
                                                  # method='least_squares',
