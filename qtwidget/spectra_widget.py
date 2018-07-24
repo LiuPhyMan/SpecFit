@@ -34,7 +34,7 @@ class _DefaultQDoubleSpinBox(QW.QDoubleSpinBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setFont(QFont('Ubuntu', 9, italic=True))
-        self.setFixedWidth(100)
+        self.setFixedWidth(110)
         self.setAlignment(Qt.AlignRight)
 
 

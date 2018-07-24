@@ -48,14 +48,15 @@ class GUISpectra(QW.QMainWindow):
         self.setWindowIcon(QIcon('gui_materials/matplotlib_large.png'))
         self.setCentralWidget(self.cenWidget)
 
-        self._spectra_plot = SpectraPlot(self.cenWidget, width=17, height=6)
+        init_width, init_height = 15, 5
+        self._spectra_plot = SpectraPlot(self.cenWidget, width=init_width, height=init_height)
         self._file_read = ReadFileQWidget()
         self._spectra_tree = SpectraFunc()
         self._wavelength_range = RangeQWidget()
         self._parameters_input = ParaQWidget()
         self._report = ReportQWidget()
         self._branch_tree = BandBranchesQTreeWidget()
-        self._resize_input = SizeInput(init_height=6, init_width=17)
+        self._resize_input = SizeInput(init_width=init_width, init_height=init_height)
         self._sim_result = None
         self._goodness_of_fit = GoodnessOfFit()
         self._normalized_factor = 1
@@ -159,10 +160,11 @@ class GUISpectra(QW.QMainWindow):
             self._exp_data['intensity'] = ydata
             self._wavelength_range.set_value(_min=xdata.min(),
                                              _max=xdata.max())
-            self._parameters_input._y_offset.set_value(x0=xdata.mean(),
-                                                       k0=0,
-                                                       c0=ydata.min(),
-                                                       I0=ydata.max())
+            # self._spectra_plot.auto_scale()
+            # self._parameters_input._y_offset.set_value(x0=xdata.mean(),
+            #                                            k0=0,
+            #                                            c0=ydata.min(),
+            #                                            I0=ydata.max())
 
         def _parameters_input_callback():
             if self._exp_data['wavelength'] is not None:
@@ -186,7 +188,7 @@ class GUISpectra(QW.QMainWindow):
         self._spectra_plot.figure.canvas.mpl_connect('motion_notify_event', self.mouse_move)
         self._file_read.TextChangedSignal.connect(_file_read_callback)
         self._parameters_input.valueChanged.connect(_parameters_input_callback)
-        self._wavelength_range.valueChanged.connect(_parameters_input_callback)
+        # self._wavelength_range.valueChanged.connect(_parameters_input_callback)
         self._resize_input.valueChanged.connect(lambda: _resize_plot(self._resize_input.value()))
         self._branch_tree.stateChanged.connect(_band_tree_callback)
         self._plot_buttons['add_sim'].clicked.connect(self.add_plot_sim)
@@ -199,9 +201,9 @@ class GUISpectra(QW.QMainWindow):
         spc_func = self._spectra_tree.spectra_func
         wv_range = self._wavelength_range.value()
         slit_func = self._parameters_input._fwhm.para_form()
-        intensity_correct = self._evole_spectra(spc_func, wv_range, slit_func,
-                                                self._exp_data['wavelength'],
-                                                *self._parameters_input.value())
+        intensity_correct = self._evolve_spectra(spc_func, wv_range, slit_func,
+                                                 self._exp_data['wavelength'],
+                                                 *self._parameters_input.value())
 
         wave_exp = self._exp_data['wavelength']
         wave_in_range = wave_exp[np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])]
@@ -260,11 +262,11 @@ class GUISpectra(QW.QMainWindow):
                                                branch=branch, shown_index=shown_index,
                                                shown_J=shown_J)
 
-    def _evole_spectra(self, _spc_func, wv_range, slit_func_name,
-                       x, Tvib, Trot_cold, Trot_hot,
-                       hot_ratio, fwhm_g, fwhm_l,
-                       x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
-                       y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
+    def _evolve_spectra(self, _spc_func, wv_range, slit_func_name,
+                        x, Tvib, Trot_cold, Trot_hot,
+                        hot_ratio, fwhm_g, fwhm_l,
+                        x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
+                        y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
         # --------------------------------------------------------------------------------------- #
         # tracer
         _str_0 = 'Tvib={Tvib:4.0f} K, Trot={Trot:4.0f} K, '.format(Tvib=Tvib, Trot=Trot_cold)
@@ -289,7 +291,7 @@ class GUISpectra(QW.QMainWindow):
                                      c0=y_offset_c0,
                                      I0=y_offset_I0)
         x_correct_func = self._parameters_input._x_offset.correct_func(
-                **x_correct_func_kwargs)
+            **x_correct_func_kwargs)
         y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_func_kwargs)
         wave_range_corrected = x_correct_func(wv_range)
         wavelength_corrected = x_correct_func(x)
@@ -316,12 +318,12 @@ class GUISpectra(QW.QMainWindow):
         def func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
                  x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
                  y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
-            return self._evole_spectra(_spc_func, wv_range, slit_func_name,
-                                       x, Tvib, Trot_cold, Trot_hot, hot_ratio,
-                                       fwhm_g, fwhm_l,
-                                       x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2,
-                                       x_offset_k3,
-                                       y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0)
+            return self._evolve_spectra(_spc_func, wv_range, slit_func_name,
+                                        x, Tvib, Trot_cold, Trot_hot, hot_ratio,
+                                        fwhm_g, fwhm_l,
+                                        x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2,
+                                        x_offset_k3,
+                                        y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0)
 
         # build model
         spectra_fit_model = Model(func)
