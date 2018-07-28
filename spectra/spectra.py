@@ -11,8 +11,9 @@ Created on 0:31 2018/4/5
 import os
 import math
 import numpy as np
-from scipy import special
 from matplotlib import pyplot as plt
+from .voigt import voigt_pseudo
+
 
 def convolute_to_voigt(*, fwhm_G, fwhm_L):
     return 0.5346 * fwhm_L + np.sqrt(0.2166 * fwhm_L ** 2 + fwhm_G ** 2)
@@ -160,8 +161,8 @@ class Spectra(object):
             return temp
 
         elif slit_func == 'Voigt':
-            # fwhm_G = fwhm['Gaussian']
-            # fwhm_L = fwhm['Lorentzian']
+            fG = fwhm['Gaussian']
+            fL = fwhm['Lorentzian']
             # if fwhm_G / fwhm_L < 1e-6:
             #     return self.evolve_slit_func(delta_wv, fwhm, 'Lorentzian', threshold)
             # fwhm_V = convolute_to_voigt(fwhm_G=fwhm_G, fwhm_L=fwhm_L)
@@ -175,23 +176,24 @@ class Spectra(object):
             # return y
             # ----------------------------------------------------------------------------------- #
             # psedo_voigt
-            fG, fL = fwhm['Gaussian'], fwhm['Lorentzian']
-            _fwhm = fG ** 5 + 2.69269 * fG ** 4 * fL + 2.42843 * fG ** 3 * fL ** 2 + \
-                    4.47163 * fG ** 2 * fL ** 3 + 0.07842 * fG * fL ** 4 + fL ** 5
-            _fwhm = _fwhm ** (1 / 5)
-
-            delta_x = delta_wv / _fwhm
-            _where = np.logical_and(-threshold < delta_x, delta_x < threshold)
-            if not _where.any():
-                return np.zeros_like(delta_wv)
-
-            a = 1.36603 * (fL / _fwhm) - 0.47719 * (fL / _fwhm) ** 2 + 0.11116 * (fL / _fwhm) ** 3
-            L_part = fL / 2 / math.pi / (delta_wv ** 2 + (fL / 2) ** 2)
-            sigma = fG / 2 / math.sqrt(2 * math.log(2))
-            temp = np.zeros_like(delta_wv)
-            _ = np.exp(-delta_wv**2/2/sigma**2, out=temp, where=_where)
-            G_part = temp / sigma / math.sqrt(2 * math.pi)
-            return a * L_part + (1-a) *G_part
+            # base on voigt defination on wiki.
+            # fG, fL = fwhm['Gaussian'], fwhm['Lorentzian']
+            # _fwhm = fG ** 5 + 2.69269 * fG ** 4 * fL + 2.42843 * fG ** 3 * fL ** 2 + \
+            #         4.47163 * fG ** 2 * fL ** 3 + 0.07842 * fG * fL ** 4 + fL ** 5
+            # _fwhm = _fwhm ** (1 / 5)
+            #
+            # delta_x = delta_wv / _fwhm
+            # _where = np.logical_and(-threshold < delta_x, delta_x < threshold)
+            # if not _where.any():
+            #     return np.zeros_like(delta_wv)
+            #
+            # a = 1.36603 * (fL / _fwhm) - 0.47719 * (fL / _fwhm) ** 2 + 0.11116 * (fL / _fwhm) ** 3
+            # L_part = fL / 2 / math.pi / (delta_wv ** 2 + (fL / 2) ** 2)
+            # sigma = fG / 2 / math.sqrt(2 * math.log(2))
+            # temp = np.zeros_like(delta_wv)
+            # _ = np.exp(-delta_wv**2/2/sigma**2, out=temp, where=_where)
+            # G_part = temp / sigma / math.sqrt(2 * math.pi)
+            return voigt_pseudo(delta_wv, fG, fL)
 
         else:
             raise Exception("The slit function '{s}' is error.".format(s=slit_func))
