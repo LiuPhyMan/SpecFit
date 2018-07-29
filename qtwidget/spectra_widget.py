@@ -702,6 +702,10 @@ class SpectraPlot(QPlot):
         self._branch_lines = []
         self._texts = []
         self.figure.tight_layout()
+        self.figure.canvas.mpl_connect('button_press_event', self.click_callback)
+
+    def click_callback(self, event):
+        print('{x:.2f} {y:.2f}'.format(x=event.xdata, y=event.ydata))
 
     def set_sim_line(self, *, xdata, ydata):
         self.sim_line.set_data(xdata, ydata)
