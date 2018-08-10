@@ -368,6 +368,7 @@ class GUISpectra(QW.QMainWindow):
         # cb.setText("Clipboard Text", mode=cb.Clipboard)
         self._goodness_of_fit.set_value(p_data=self._sim_result.best_fit,
                                         o_data=self._sim_result.data)
+        self.print_sim_result()
         self.show_report()
 
     def mouse_move(self, event):
@@ -415,7 +416,6 @@ class GUISpectra(QW.QMainWindow):
 
     def show_report(self):
         _str = '' if self._sim_result is None else self._sim_result.fit_report()
-        _str = self.simulated_result()
         msg = QW.QMessageBox()
         msg.setIcon(QW.QMessageBox.Information)
         current_time = time.strftime('%Y/%m/%d %H:%M:%S')
@@ -426,6 +426,16 @@ class GUISpectra(QW.QMainWindow):
         msg.setStandardButtons(QW.QMessageBox.Save | QW.QMessageBox.Close)
         msg.exec_()
         # msg.buttonClicked.connect(btn_callback)
+
+    def print_sim_result(self):
+        output = []
+        _str = '{value:.3e} {stderr:.3e} '
+        for _ in ('Tvib', 'Trot_cold', 'fwhm_g', 'fwhm_l'):
+            print(_)
+            output.append(_str.format(value=self._sim_result.params[_].value,
+                                      stderr=self._sim_result.params[_].stderr))
+        output.append('{r2:.4f}'.format(r2=self._goodness_of_fit._r2))
+        print(''.join(output))
 
 
 class Temp(QW.QMainWindow):

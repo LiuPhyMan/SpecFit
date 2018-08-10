@@ -35,27 +35,27 @@ vmodel = Model(voigt)
 params = vmodel.make_params()
 # x = np.linspace(-1, 1, num=300)
 # y = voigt(x, 3.0, 0, 1, 0.1, 0.1)
-for _i in range(17):
-    x, y = read_spec_asc(r'D:\Desktop\{i}_um.asc'.format(i=_i * 10))
-    y = y[np.logical_and(x < 667, 650 < x)]
-    x = x[np.logical_and(x < 667, 650 < x)]
+# for _i in range(17):
+x, y = read_spec_asc(r'E:\实验\实验_2018.07.27\Others\0-1\656.00.asc')
+y = y[np.logical_and(x < 659, 654 < x)]
+x = x[np.logical_and(x < 659, 654 < x)]
 
-    params['A'].set(value=y.max() - y.min(), min=0, max=np.inf)
-    params['x0'].set(value=656)
-    params['y0'].set(value=y.min(), min=-np.inf, max=np.inf)
-    params['fG'].set(value=0.03, min=0, max=1)
-    params['fL'].set(value=0.03, min=0, max=1)
-    out = vmodel.fit(y, params,
-                     fit_kws=dict(ftol=1e-12, xtol=1e-12), x=x)
-    # print(out.fit_report())
-    # print(out.success)
-    # print(out.redchi)
-    out.plot()
-    _str = '{g:.6f} {g_err:.6f} {l:.6f} {l_err:.6f} {A:.6f} {resi:.6f} {ratio:.6f}'
-    print(_str.format(g=out.params['fG'].value,
-                      g_err=out.params['fG'].stderr,
-                      l=out.params['fL'].value,
-                      l_err=out.params['fL'].stderr,
-                      A=out.params['A'].value,
-                      resi=out.residual.max(),
-                      ratio=out.residual.max()/out.params['A'].value))
+params['A'].set(value=y.max() - y.min(), min=0, max=np.inf)
+params['x0'].set(value=656)
+params['y0'].set(value=y.min(), min=-np.inf, max=np.inf)
+params['fG'].set(value=0.03, min=0, max=1)
+params['fL'].set(value=0.03, min=0, max=1)
+out = vmodel.fit(y, params,
+                 fit_kws=dict(ftol=1e-12, xtol=1e-12), x=x)
+# print(out.fit_report())
+# print(out.success)
+# print(out.redchi)
+out.plot()
+_str = '{g:.6f} {g_err:.6f} {l:.6f} {l_err:.6f} {A:.6f} {resi:.6f} {ratio:.6f}'
+print(_str.format(g=out.params['fG'].value,
+                  g_err=out.params['fG'].stderr,
+                  l=out.params['fL'].value,
+                  l_err=out.params['fL'].stderr,
+                  A=out.params['A'].value,
+                  resi=out.residual.max(),
+                  ratio=out.residual.max()/out.params['A'].value))

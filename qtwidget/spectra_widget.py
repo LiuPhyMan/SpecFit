@@ -532,6 +532,7 @@ class GoodnessOfFit(QW.QGroupBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._r2 = 0
         self.setTitle("Goodness of fit")
         self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
         self._set_labels()
@@ -560,8 +561,8 @@ class GoodnessOfFit(QW.QGroupBox):
         self._label_chisq.setText('0.0000')
 
     def set_value(self, *, p_data, o_data):
-        value = self.r2(p_data=p_data, o_data=o_data)
-        self._label_r2.setText("{:.6f}".format(value))
+        self._r2 = self.r2(p_data=p_data, o_data=o_data)
+        self._label_r2.setText("{:.6f}".format(self._r2))
 
 
 class NormalizedQGroupBox(QW.QGroupBox):
@@ -649,7 +650,8 @@ class ParaQWidget(QW.QWidget):
                                     hot_ratio=kwargs['hot_ratio'])
         self._fwhm.set_value(fwhm_g=kwargs['fwhm_g'],
                              fwhm_l=kwargs['fwhm_l'])
-        self._x_offset.set_value(k0=kwargs['x_offset_k0'],
+        self._x_offset.set_value(x0=kwargs['x_offset_x0'],
+                                 k0=kwargs['x_offset_k0'],
                                  k1=kwargs['x_offset_k1'],
                                  k2=kwargs['x_offset_k2'],
                                  k3=kwargs['x_offset_k3'])
@@ -703,9 +705,12 @@ class SpectraPlot(QPlot):
         self._texts = []
         self.figure.tight_layout()
         self.figure.canvas.mpl_connect('button_press_event', self.click_callback)
+        self.temp_data = 0
 
     def click_callback(self, event):
-        print('{x:.2f} {y:.2f}'.format(x=event.xdata, y=event.ydata))
+        # print('{x:.2f} {y:.2f}'.format(x=event.xdata, y=event.ydata))
+        print('{y0:.2f} {y1:.2f}'.format(y0=self.temp_data, y1=event.ydata))
+        self.temp_data = event.ydata
 
     def set_sim_line(self, *, xdata, ydata):
         self.sim_line.set_data(xdata, ydata)
