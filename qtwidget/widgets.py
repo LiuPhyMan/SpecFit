@@ -19,47 +19,6 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
 
 
-class BetterRadioButton(QW.QRadioButton):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        font = QFont('Ubuntu', 10)
-        self.setFont(font)
-        self.setCursor(QCursor(Qt.PointingHandCursor))
-
-
-class BetterQLabel(QW.QLabel):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        font = QFont('Ubuntu', 10)
-        self.setFont(font)
-
-
-class BetterQDoubleSpinBox(QW.QDoubleSpinBox):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setFont(QFont('Ubuntu', 10))
-
-
-class BetterQCheckBox(QW.QCheckBox):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setCursor(QCursor(Qt.PointingHandCursor))
-
-
-class BetterButton(QW.QPushButton):
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.setCursor(QCursor(Qt.PointingHandCursor))
-        _font = QFont('Ubuntu', 11)
-        self.setFont(_font)
-        self.setStyleSheet(':hover {background-color: #87CEFA ;}')
-
-
 class LogScaleSlier(QW.QSlider):
 
     def __init__(self, parent):

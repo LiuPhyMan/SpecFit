@@ -11,15 +11,12 @@ Created on 13:20 2018/4/6
 import re
 import sys
 import numpy as np
-import matplotlib
-import copy
 import time
 from spectra import OHSpectra
-from functools import partial
 from lmfit import Model
 from PyQt5 import QtWidgets as QW
-from PyQt5.QtGui import QIcon, QCursor, QFont, QClipboard
-from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QFont
+from BetterQWidgets import BetterQPushButton
 from qtwidget import (SpectraPlot,
                       RangeQWidget,
                       ReadFileQWidget,
@@ -27,7 +24,6 @@ from qtwidget import (SpectraPlot,
                       GoodnessOfFit,
                       SpectraFunc,
                       ReportQWidget,
-                      BetterButton,
                       BandBranchesQTreeWidget,
                       NormalizedQGroupBox,
                       SizeInput,
@@ -291,7 +287,7 @@ class GUISpectra(QW.QMainWindow):
                                      c0=y_offset_c0,
                                      I0=y_offset_I0)
         x_correct_func = self._parameters_input._x_offset.correct_func(
-            **x_correct_func_kwargs)
+                **x_correct_func_kwargs)
         y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_func_kwargs)
         wave_range_corrected = x_correct_func(wv_range)
         wavelength_corrected = x_correct_func(x)
@@ -382,12 +378,12 @@ class GUISpectra(QW.QMainWindow):
         self.button_layout = QW.QVBoxLayout()
         sub_layout = QW.QGridLayout()
         self._plot_buttons = dict()
-        self._plot_buttons['clear_sim'] = BetterButton('ClearSim')
-        self._plot_buttons['clear_exp'] = BetterButton('ClearExp')
-        self._plot_buttons['add_sim'] = BetterButton('AddSim')
+        self._plot_buttons['clear_sim'] = BetterQPushButton('ClearSim')
+        self._plot_buttons['clear_exp'] = BetterQPushButton('ClearExp')
+        self._plot_buttons['add_sim'] = BetterQPushButton('AddSim')
         # self._plot_buttons['add_exp'] = BetterButton('Add&Exp')
-        self._plot_buttons['auto_scale'] = BetterButton('&AutoScale')
-        self._plot_buttons['fit'] = BetterButton('&Fit')
+        self._plot_buttons['auto_scale'] = BetterQPushButton('&AutoScale')
+        self._plot_buttons['fit'] = BetterQPushButton('&Fit')
         sub_layout.addWidget(self._plot_buttons['auto_scale'], 0, 0)
         sub_layout.addWidget(self._plot_buttons['add_sim'], 1, 0)
         # sub_layout.addWidget(self._plot_buttons['add_exp'], 2, 0)
