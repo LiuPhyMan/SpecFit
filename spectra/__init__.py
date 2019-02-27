@@ -10,6 +10,7 @@ Created on 18:01 2018/4/15
 """
 from __future__ import division, print_function, absolute_import
 from .spectra import *
+# from . import voigt
 from . import voigt
 
 __all__ = [s for s in dir() if not s.startswith('_')]

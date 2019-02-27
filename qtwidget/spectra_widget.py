@@ -17,11 +17,9 @@ from PyQt5 import QtWidgets as QW
 from PyQt5.QtGui import QCursor, QFont
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from spectra import OHSpectra, COSpectra, AddSpectra, convolute_to_voigt
-from .widgets import (QPlot,
-                      BetterButton,
-                      BetterQLabel,
-                      BetterQDoubleSpinBox,
-                      BetterQCheckBox)
+from .widgets import QPlot
+from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox
+from BetterQWidgets import BetterQPushButton as BetterButton
 
 _GROUPBOX_TITLE_STYLESHEET = "QGroupBox { font-weight: bold; font-family: UBuntu; font-size: 10pt}"
 _DEFAULT_FONT = QFont('Ubuntu', 10, weight=-1)

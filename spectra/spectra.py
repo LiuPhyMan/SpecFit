@@ -12,8 +12,7 @@ import os
 import math
 import numpy as np
 from matplotlib import pyplot as plt
-from .voigt import voigt_pseudo
-
+# from .voigt import voigt_pseudo
 
 def convolute_to_voigt(*, fwhm_G, fwhm_L):
     return 0.5346 * fwhm_L + np.sqrt(0.2166 * fwhm_L ** 2 + fwhm_G ** 2)
@@ -187,7 +186,8 @@ class Spectra(object):
             # if not _where.any():
             #     return np.zeros_like(delta_wv)
             #
-            # a = 1.36603 * (fL / _fwhm) - 0.47719 * (fL / _fwhm) ** 2 + 0.11116 * (fL / _fwhm) ** 3
+            # a = 1.36603 * (fL / _fwhm) - 0.47719 * (fL / _fwhm) ** 2 + 0.11116 * (fL / _fwhm)
+            # ** 3
             # L_part = fL / 2 / math.pi / (delta_wv ** 2 + (fL / 2) ** 2)
             # sigma = fG / 2 / math.sqrt(2 * math.log(2))
             # temp = np.zeros_like(delta_wv)
