@@ -12,12 +12,13 @@ import re
 import sys
 import numpy as np
 import time
+import textwrap
 from spectra import OHSpectra
 from lmfit import Model
 from PyQt5 import QtWidgets as QW
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import pyqtSignal
-from BetterQWidgets import BetterQPushButton
+from BetterQWidgets import BetterQPushButton as _BttrButton
 from qtwidget import (SpectraPlot,
                       RangeQWidget,
                       ReadFileQWidget,
@@ -31,15 +32,22 @@ from qtwidget import (SpectraPlot,
                       ExpLinesQTreeWidget)
 
 
+class BetterQPushButton(_BttrButton):
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(30)
+
+
 class GUISpectra(QW.QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
         # self.resize(800, 600)
-        # self.showMaximized()
+        self.showMaximized()
         # self.showMinimized()
-        # avGeom = QW.QDesktopWidget().availableGeometry()
-        # self.setGeometry(avGeom)
+        avGeom = QW.QDesktopWidget().availableGeometry()
+        self.setGeometry(avGeom)
         self.cenWidget = QW.QWidget()
         self.setWindowTitle('Spectra sim v1.0')
         self.setWindowIcon(QIcon('gui_materials/matplotlib_large.png'))
@@ -59,6 +67,8 @@ class GUISpectra(QW.QMainWindow):
         self._normalized_factor = 1
         self._normalized_groupbox = NormalizedQGroupBox()
         self._exp_data = dict(wavelength=None, intensity=None)
+        self._output = QW.QTextEdit()
+        self._output.setFont(QFont("Consolas", 11))
         self.set_button_layout()
         self._set_layout()
         self._set_toolbar()
@@ -115,6 +125,7 @@ class GUISpectra(QW.QMainWindow):
         sub_layout.addWidget(self._normalized_groupbox)
         sub_layout.addLayout(self.button_layout)
         sub_layout.addWidget(self._goodness_of_fit)
+        sub_layout.addWidget(self._output)
         sub_layout.addStretch(1)
         _layout.addLayout(sub_layout)
         _layout.addStretch(1)
@@ -155,8 +166,8 @@ class GUISpectra(QW.QMainWindow):
             self._exp_data = dict()
             self._exp_data['wavelength'] = xdata
             self._exp_data['intensity'] = ydata
-            self._wavelength_range.set_value(_min=xdata.min(),
-                                             _max=xdata.max())
+            # self._wavelength_range.set_value(_min=xdata.min(),
+            #                                  _max=xdata.max())
             # self._spectra_plot.auto_scale()
             # self._parameters_input._y_offset.set_value(x0=xdata.mean(),
             #                                            k0=0,
@@ -284,11 +295,11 @@ class GUISpectra(QW.QMainWindow):
                                      c0=y_offset_c0,
                                      I0=y_offset_I0)
         self.x_correct_func = self._parameters_input._x_offset.correct_func(
-                **x_correct_func_kwargs)
+            **x_correct_func_kwargs)
         self.y_correct_func = self._parameters_input._y_offset.correct_func(
-                **y_correct_func_kwargs)
+            **y_correct_func_kwargs)
         self.x_correct_func_reversed = self._parameters_input._x_offset.correct_func_reversed(
-                **x_correct_func_kwargs)
+            **x_correct_func_kwargs)
         wave_range_corrected = self.x_correct_func(wv_range)
         wavelength_corrected = self.x_correct_func(x)
 
@@ -367,6 +378,7 @@ class GUISpectra(QW.QMainWindow):
                                         o_data=self._sim_result.data)
         self.print_sim_result()
         self.show_report()
+        self._output.setText(self.simulated_result_to_copy())
 
     def mouse_move(self, event):
         if event.inaxes:
@@ -404,12 +416,30 @@ class GUISpectra(QW.QMainWindow):
             else:
                 return '\n{v:{frmt}} [fixed]'.format(value=value, frmt=_format)
 
-        _str = ''
-        _str += get_print_str(self._sim_result.params['Tvib'], '.0f')
-        _str += get_print_str(self._sim_result.params['Trot_cold'], '.0f')
-        _str += get_print_str(self._sim_result.params['fwhm_g'], '.3f')
-        _str += get_print_str(self._sim_result.params['fwhm_l'], '.3f')
-        return _str
+        _str = r"""Simulation is {a}
+        Method              : {b}
+        ndata points        : {c}
+        variables           : {d}
+        function evals      : {e}
+        reduced chi_square  : {f}
+        
+        Tvib
+        Trot_cold
+        fwhm_g
+        fwhm_l
+        """.format(a="Success" if self._sim_result.success else "Failed",
+                   b=self._sim_result.method,
+                   c=self._sim_result.ndata,
+                   d=self._sim_result.nvarys,
+                   e=self._sim_result.nfev,
+                   f=self._sim_result.redchi)
+        _str += get_print_str(self._sim_result.params['Tvib'], '<8.2f')
+        _str += get_print_str(self._sim_result.params['Trot_cold'], '<8.2f')
+        _str += get_print_str(self._sim_result.params['fwhm_g'], '<8.5f')
+        _str += get_print_str(self._sim_result.params['fwhm_l'], '<8.5f')
+        print(_str)
+        print(textwrap.dedent(_str))
+        return textwrap.dedent(_str)
 
     def show_report(self):
         _str = '' if self._sim_result is None else self._sim_result.fit_report()

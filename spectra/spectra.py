@@ -12,7 +12,7 @@ import os
 import math
 import numpy as np
 from matplotlib import pyplot as plt
-# from .voigt import voigt_pseudo
+from .voigt import voigt_pseudo
 
 def convolute_to_voigt(*, fwhm_G, fwhm_L):
     return 0.5346 * fwhm_L + np.sqrt(0.2166 * fwhm_L ** 2 + fwhm_G ** 2)
