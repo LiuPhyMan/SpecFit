@@ -12,7 +12,6 @@ import re
 import sys
 import numpy as np
 import time
-import textwrap
 from spectra import OHSpectra
 from lmfit import Model
 from PyQt5 import QtWidgets as QW
@@ -43,11 +42,7 @@ class GUISpectra(QW.QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        # self.resize(800, 600)
         self.showMaximized()
-        # self.showMinimized()
-        avGeom = QW.QDesktopWidget().availableGeometry()
-        self.setGeometry(avGeom)
         self.cenWidget = QW.QWidget()
         self.setWindowTitle('Spectra sim v1.0')
         self.setWindowIcon(QIcon('gui_materials/matplotlib_large.png'))
@@ -168,11 +163,7 @@ class GUISpectra(QW.QMainWindow):
             self._exp_data['intensity'] = ydata
             # self._wavelength_range.set_value(_min=xdata.min(),
             #                                  _max=xdata.max())
-            # self._spectra_plot.auto_scale()
-            # self._parameters_input._y_offset.set_value(x0=xdata.mean(),
-            #                                            k0=0,
-            #                                            c0=ydata.min(),
-            #                                            I0=ydata.max())
+            self._spectra_plot.auto_scale()
 
         def _parameters_input_callback():
             if self._exp_data['wavelength'] is not None:
@@ -212,7 +203,6 @@ class GUISpectra(QW.QMainWindow):
         intensity_correct = self._evolve_spectra(spc_func, wv_range, slit_func,
                                                  self._exp_data['wavelength'],
                                                  *self._parameters_input.value())
-
         wave_exp = self._exp_data['wavelength']
         wave_in_range = wave_exp[np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])]
         return wave_in_range, intensity_correct
@@ -245,9 +235,9 @@ class GUISpectra(QW.QMainWindow):
         # set intensity
         _spc_func.set_intensity()
         wv, intens = _spc_func.line_intensity(branch=branch)
+        _normalized_factor = self._spectra_tree.spectra_func.normalized_factor
         return self.x_correct_func_reversed(wv), self.y_correct_func(wv,
-                                                                     intens /
-                                                                     self._spectra_tree.spectra_func.normalized_factor)
+                                                                     intens / _normalized_factor)
 
     def plot_line_intensity(self, *, band, v_upper, v_lower, branch):
         x, y = self._get_line_intensity(band=band, v_upper=v_upper, v_lower=v_lower, branch=branch)
@@ -284,9 +274,7 @@ class GUISpectra(QW.QMainWindow):
                                                           Trot_cold=Trot_cold,
                                                           Trot_hot=Trot_hot,
                                                           hot_ratio=hot_ratio)
-
         _spc_func.set_intensity()
-
         x_correct_func_kwargs = dict(x0=x_offset_x0,
                                      k0=x_offset_k0, k1=x_offset_k1,
                                      k2=x_offset_k2, k3=x_offset_k3)
@@ -302,7 +290,6 @@ class GUISpectra(QW.QMainWindow):
             **x_correct_func_kwargs)
         wave_range_corrected = self.x_correct_func(wv_range)
         wavelength_corrected = self.x_correct_func(x)
-
         _, intens = _spc_func.get_extended_wavelength(wavelength_range=wave_range_corrected,
                                                       waveLength_exp=wavelength_corrected,
                                                       slit_func=slit_func_name,
@@ -319,7 +306,6 @@ class GUISpectra(QW.QMainWindow):
         _bool = np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])
         wave_in_range = wave_exp[_bool]
         intens_in_range = intens_exp[_bool]
-        #
         slit_func_name = self._parameters_input._fwhm.para_form()
 
         def func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
@@ -370,15 +356,10 @@ class GUISpectra(QW.QMainWindow):
         self._spectra_plot.set_sim_line(xdata=wave_in_range,
                                         ydata=self._sim_result.best_fit)
         self._parameters_input.set_value(**self._sim_result.values)
-        # QClipboard().setText('copy_trext')
-        # cb = QW.QApplication.clipboard()
-        # cb.clear(mode=cb.Clipboard)
-        # cb.setText("Clipboard Text", mode=cb.Clipboard)
         self._goodness_of_fit.set_value(p_data=self._sim_result.best_fit,
                                         o_data=self._sim_result.data)
-        self.print_sim_result()
-        self.show_report()
         self._output.setText(self.simulated_result_to_copy())
+        self.show_report()
 
     def mouse_move(self, event):
         if event.inaxes:
@@ -411,8 +392,8 @@ class GUISpectra(QW.QMainWindow):
         def get_print_str(param, _format):
             value = param.value
             if param.vary:
-                return '\n{v:{frmt}} {err:{frmt}}'.format(v=value, err=param.stderr,
-                                                          frmt=_format)
+                return '\n{v:{frmt}} +/- {err:{frmt}}'.format(v=value, err=param.stderr,
+                                                              frmt=_format)
             else:
                 return '\n{v:{frmt}} [fixed]'.format(value=value, frmt=_format)
 
@@ -421,8 +402,8 @@ class GUISpectra(QW.QMainWindow):
         ndata points        : {c}
         variables           : {d}
         function evals      : {e}
-        reduced chi_square  : {f}
-        
+        reduced chi_square  : {f:.2e}
+        R2                  : {g:.4f}
         Tvib
         Trot_cold
         fwhm_g
@@ -432,14 +413,15 @@ class GUISpectra(QW.QMainWindow):
                    c=self._sim_result.ndata,
                    d=self._sim_result.nvarys,
                    e=self._sim_result.nfev,
-                   f=self._sim_result.redchi)
+                   f=self._sim_result.redchi,
+                   g=self._goodness_of_fit._r2)
         _str += get_print_str(self._sim_result.params['Tvib'], '<8.2f')
         _str += get_print_str(self._sim_result.params['Trot_cold'], '<8.2f')
         _str += get_print_str(self._sim_result.params['fwhm_g'], '<8.5f')
         _str += get_print_str(self._sim_result.params['fwhm_l'], '<8.5f')
-        print(_str)
-        print(textwrap.dedent(_str))
-        return textwrap.dedent(_str)
+        _str = re.sub(r"^\s+", r"\n", _str)
+        _str = re.sub(r"\n\s+", r"\n", _str)
+        return _str
 
     def show_report(self):
         _str = '' if self._sim_result is None else self._sim_result.fit_report()
@@ -452,17 +434,16 @@ class GUISpectra(QW.QMainWindow):
         msg.setWindowTitle('Simulation Report')
         msg.setStandardButtons(QW.QMessageBox.Save | QW.QMessageBox.Close)
         msg.exec_()
-        # msg.buttonClicked.connect(btn_callback)
 
     def print_sim_result(self):
         output = []
-        _str = '{value:.3e} {stderr:.3e} '
+        _str = '{value:.3e} {stderr:.3e}'
         for _ in ('Tvib', 'Trot_cold', 'fwhm_g', 'fwhm_l'):
             print(_)
             output.append(_str.format(value=self._sim_result.params[_].value,
                                       stderr=self._sim_result.params[_].stderr))
-        output.append('{r2:.4f}'.format(r2=self._goodness_of_fit._r2))
-        print(''.join(output))
+        output.append('R2 = {r2:.4f}'.format(r2=self._goodness_of_fit._r2))
+        print('\n'.join(output))
 
 
 class QDoubleSpinBoxInSCI(QW.QWidget):
@@ -562,4 +543,3 @@ if __name__ == "__main__":
     # window = Temp()
     window.show()
     app.exec_()
-    # run_app()
