@@ -16,6 +16,7 @@ OH = OHSpectra(band='A-X', v_upper=0, v_lower=0)
 OH.ravel_coefficients()
 
 wv_exp = np.linspace(309.5, 310.5, num=50000)
+OH.narrow_range(_range=(wv_exp[0], wv_exp[-1]))
 # ----------------------------------------------------------------------------------------------- #
 # OH.set_maxwell_distribution(Tvib=4000, Trot=2000)
 _distribution = np.ones_like(OH.wave_length)

@@ -256,6 +256,17 @@ class MoleculeSpectra(Spectra):
         self.gJ_upper = self.gJ_upper.ravel()
         self.Fev_upper = self.Fev_upper.ravel()
 
+    def narrow_range(self, *, _range):
+        _chosen = np.logical_and(_range[0] < self.wave_length, self.wave_length < _range[1])
+        assert _chosen.any()
+        self.wave_number = self.wave_number[_chosen]
+        self.wave_length = self.wave_length[_chosen]
+        self.emission_coefficients = self.emission_coefficients[_chosen]
+        self.gv_upper = self.gv_upper[_chosen]
+        self.Ge_upper = self.Ge_upper[_chosen]
+        self.gJ_upper = self.gJ_upper[_chosen]
+        self.Fev_upper = self.Fev_upper[_chosen]
+
     @staticmethod
     def honl_london_factor(*, band, branch):
         if band in ('CO(B-A)',):
