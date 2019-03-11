@@ -14,6 +14,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from .voigt import voigt_pseudo
 
+
 def convolute_to_voigt(*, fwhm_G, fwhm_L):
     return 0.5346 * fwhm_L + np.sqrt(0.2166 * fwhm_L ** 2 + fwhm_G ** 2)
 
@@ -57,10 +58,11 @@ class MoleculeState(object):
             const_array = np.array([3178.3554, -92.68141, -1.77305, .307923, -3.5494e-2])
             return const_array.dot(np.power(v + .5, [1, 2, 3, 4, 5]))
         elif self.state == 'CO(B)':
-            # 0-2
+            # v numbers : 0-2
             v_term = [1072, 3154, 5154]
             return v_term[v]
         elif self.state == 'CO(A)':
+            # v numbers : 0-6
             # 0-6
             v_term = [753.49, 2242.3, 3685.2, 5097.9, 6476.1, 7818.2, 9125.0]
             return v_term[v]
@@ -100,6 +102,11 @@ class Spectra(object):
 
     def set_intensity(self):
         self.intensity = self.distribution * self.emission_coefficients * self.wave_number
+        self.intensity = self.intensity * 1.9864458241717582e-25  # multiply hc
+
+    def set_distribution(self, *, distribution):
+        assert distribution.shape == self.wave_length.shape
+        self.distribution = distribution
 
     def get_extended_wavelength(self, *, waveLength_exp,
                                 fwhm, slit_func, wavelength_range=None,
@@ -220,6 +227,13 @@ class MoleculeSpectra(Spectra):
         self.Fev_upper = None
 
     def set_maxwell_distribution(self, *, Tvib, Trot):
+        r"""
+        Set the distribution to a maxwell one.
+        Parameters
+        ----------
+        Tvib : K
+        Trot : K
+        """
         vib_distribution = self.gv_upper * np.exp(-self.Ge_upper * self.WNcm2K / Tvib)
         rot_distribution = self.gJ_upper * np.exp(-self.Fev_upper * self.WNcm2K / Trot)
         self.distribution = vib_distribution * rot_distribution
