@@ -100,60 +100,79 @@ class Spectra(object):
         self.intensity = None
         self.normalized_factor = None
 
-    def set_intensity(self):
-        self.intensity = self.distribution * self.emission_coefficients * self.wave_number
-        self.intensity = self.intensity * 1.9864458241717582e-25  # multiply hc
-
+    # ------------------------------------------------------------------------------------------- #
     def set_distribution(self, *, distribution):
         assert distribution.shape == self.wave_length.shape
         self.distribution = distribution
 
+    def set_intensity(self):
+        self.intensity = self.distribution * self.emission_coefficients * self.wave_number
+        self.intensity = self.intensity * 1.9864458241717582e-25  # multiply hc
+
+    # ------------------------------------------------------------------------------------------- #
     def get_extended_wavelength(self, *, waveLength_exp,
                                 fwhm, slit_func, wavelength_range=None,
                                 normalized=False, threshold=3):
         r"""
-        Gauss :
-            threshold : 2.5
-            exp(-4*log(2)*2.5**2) = 2.98e-08
-        Lorentzian :
-            threshold : 5e2
-            1/(4*5e2**2+1) = 1.0e-06
+        Convolve the slit function on the experiment wavelength.
+        Threshold :
+            Gaussian :
+                threshold : 2.5
+                exp(-4*log(2)*2.5**2) = 2.98e-08
+            Lorentzian :
+                threshold : 5e2
+                1/(4*5e2**2+1) = 1.0e-06
         """
+        # --------------------------------------------------------------------------------------- #
+        #   _chosen :
+        #       the boolean to choose the absolute wavelength position in the range.
+        #   wv_exp_chosen :
+        #       the boolean to choose the exp_wavelength in the range.
         if wavelength_range is None:
             _chosen = np.ones_like(self.wave_length) > 0
             wv_exp_chosen = np.ones_like(waveLength_exp) > 0
         else:
-            _chosen = np.logical_and((wavelength_range[0] - 1) < self.wave_length,
-                                     (wavelength_range[1] + 1) > self.wave_length)
+            _range_added = 3*(fwhm['Gaussian'] + fwhm['Lorentzian'])
+            _chosen = np.logical_and((wavelength_range[0] - 3 * _range_added) < self.wave_length,
+                                     self.wave_length < (wavelength_range[1] + 3 * _range_added))
             wv_exp_chosen = np.logical_and(wavelength_range[0] < waveLength_exp,
                                            wavelength_range[1] > waveLength_exp)
+        # --------------------------------------------------------------------------------------- #
+        #   wavelength_in_range :
+        #       absolute wavelength in the range.
+        #   intensity_in_range :
+        #       absolute intensity in the range.
         wavelength_in_range = self.wave_length[_chosen]
         intensity_in_range = self.intensity[_chosen]
         wv_exp_in_range = waveLength_exp[wv_exp_chosen]
-
-        if _chosen.any() == False:
+        #   If the absolute wavelength are all out of the range.
+        if not _chosen.any():
             return wv_exp_in_range, np.zeros_like(wv_exp_in_range)
-
+        # --------------------------------------------------------------------------------------- #
+        #   Format the matrix of the delta wavelength. Convolve the slit function.
         delta_wv = (wv_exp_in_range[np.newaxis].transpose() - wavelength_in_range)
-        delta_wv_extended = self.evolve_slit_func(delta_wv, fwhm, slit_func, threshold)
-        _intensity = delta_wv_extended.dot(intensity_in_range)
-        if not normalized:
-            return wv_exp_in_range, _intensity
-        self.normalized_factor = _intensity.max()
-        return wv_exp_in_range, _intensity / _intensity.max()
+        normal_intens_extended = self.evolve_slit_func(delta_wv, fwhm, slit_func, threshold)
+        intensity_on_wv_exp = normal_intens_extended.dot(intensity_in_range)
+        #   Return the wavelength and the simulated intensity in the range.
+        if normalized:
+            self.normalized_factor = intensity_on_wv_exp.max()
+            return wv_exp_in_range, intensity_on_wv_exp / intensity_on_wv_exp.max()
+        return wv_exp_in_range, intensity_on_wv_exp
 
+    # ------------------------------------------------------------------------------------------- #
     def evolve_slit_func(self, delta_wv, fwhm, slit_func, threshold):
+        r"""
+        Returns the intensity matrix based on the delta wavelength and the slit function.
+        """
         if slit_func == 'Gaussian':
             _fwhm = fwhm['Gaussian']
             delta_x = delta_wv / _fwhm
             _where = np.logical_and(-threshold < delta_x, delta_x < threshold)
             if not _where.any():
                 return np.zeros_like(delta_wv)
-            temp = np.zeros_like(delta_wv)
-            _ = np.exp(-4 * np.log(2) * delta_x ** 2, out=temp, where=_where)
-            # temp = temp * math.sqrt(4 * math.log(2) / math.pi) / _fwhm
-            temp = temp * 1
-            return temp
+            intens_matrix = np.zeros_like(delta_wv)
+            _ = np.exp(-4 * np.log(2) * delta_x ** 2, out=intens_matrix, where=_where)
+            return intens_matrix
 
         elif slit_func == 'Lorentzian':
             _fwhm = fwhm['Lorentzian']
@@ -161,17 +180,15 @@ class Spectra(object):
             _where = np.logical_and(-threshold < delta_x, delta_x < threshold)
             if not _where.any():
                 return np.zeros_like(delta_wv)
-            temp = 2 / (4 * delta_x ** 2 + 1)
-            # temp = temp / math.pi / _fwhm
-            temp = temp * 0.5
-            return temp
+            intens_matrix = 2 / (4 * delta_x ** 2 + 1)
+            return intens_matrix
 
         elif slit_func == 'Voigt':
             fG = fwhm['Gaussian']
             fL = fwhm['Lorentzian']
             # if fwhm_G / fwhm_L < 1e-6:
             #     return self.evolve_slit_func(delta_wv, fwhm, 'Lorentzian', threshold)
-            # fwhm_V = convolute_to_voigt(fwhm_G=fwhm_G, fwhm_L=fwhm_L)
+            # fwhm_V = convolve_to_voigt(fwhm_G=fwhm_G, fwhm_L=fwhm_L)
             # # print(delta_x.size)
             # # print(_where[_where == True].size)
             # sigma = fwhm_G / 2 / math.sqrt(2 * math.log(2))
@@ -200,11 +217,12 @@ class Spectra(object):
             # temp = np.zeros_like(delta_wv)
             # _ = np.exp(-delta_wv**2/2/sigma**2, out=temp, where=_where)
             # G_part = temp / sigma / math.sqrt(2 * math.pi)
+            # TODO Check the voigt pseudo function.
             return voigt_pseudo(delta_wv, fG, fL)
-
         else:
             raise Exception("The slit function '{s}' is error.".format(s=slit_func))
 
+    # ------------------------------------------------------------------------------------------- #
     @staticmethod
     def wavelength_vac2air(wv0):
         k0 = 238.0185
@@ -216,7 +234,6 @@ class Spectra(object):
         return wv0 / n
 
 
-# noinspection SpellCheckingInspection
 class MoleculeSpectra(Spectra):
 
     def __init__(self):
@@ -311,9 +328,7 @@ class OHSpectra(MoleculeSpectra):
 
     def line_intensity(self, *, branch):
         assert branch in self._BRANCH_SEQ
-        print(branch)
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
-        print(branch_index)
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
 
     def _set_coefs(self, *, band, v_upper, v_lower):
@@ -372,21 +387,12 @@ class COSpectra(MoleculeSpectra):
         super().__init__()
         self.v_upper = v_upper
         self.v_lower = v_lower
-        self.set_coefficients(band=band)
+        self._set_coefs(band=band)
 
-    def set_coefficients(self, *, band):
+    def _set_coefs(self, *, band):
         r"""
         Branches :
             P, Q, R
-        Parameters
-        ----------
-        band
-        v_upper
-        v_lower
-
-        Returns
-        -------
-
         """
         assert band == 'B-A'
         J_max = 40
@@ -428,20 +434,17 @@ class AddSpectra(MoleculeSpectra):
 
     def __init__(self, spec0, spec1):
         super().__init__()
+        combine_coefs = lambda a, b: np.hstack((a.ravel(), b.ravel()))
+        self.wave_number = combine_coefs(spec0.wave_number, spec1.wave_number)
+        self.wave_length = combine_coefs(spec0.wave_length, spec1.wave_length)
+        self.emission_coefficients = combine_coefs(spec0.emission_coefficients,
+                                                   spec1.emission_coefficients)
+        self.gv_upper = combine_coefs(spec0.gv_upper, spec1.gv_upper)
+        self.gJ_upper = combine_coefs(spec0.gJ_upper, spec1.gJ_upper)
+        self.Ge_upper = combine_coefs(spec0.Ge_upper, spec1.Ge_upper)
+        self.Fev_upper = combine_coefs(spec0.Fev_upper, spec1.Fev_upper)
 
-        def combine(a, b):
-            return np.hstack((a.ravel(), b.ravel()))
-
-        self.wave_number = combine(spec0.wave_number, spec1.wave_number)
-        self.wave_length = combine(spec0.wave_length, spec1.wave_length)
-        self.emission_coefficients = combine(spec0.emission_coefficients,
-                                             spec1.emission_coefficients)
-        self.gv_upper = combine(spec0.gv_upper, spec1.gv_upper)
-        self.gJ_upper = combine(spec0.gJ_upper, spec1.gJ_upper)
-        self.Ge_upper = combine(spec0.Ge_upper, spec1.Ge_upper)
-        self.Fev_upper = combine(spec0.Fev_upper, spec1.Fev_upper)
-
-
+# ----------------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
     r"""
     oh_0 = OHSpectra(band='A-X', v_upper=0, v_lower=0)
@@ -451,26 +454,14 @@ if __name__ == '__main__':
     oh = AddSpectra(spec0=oh, spec1=oh_2)
     oh.set_maxwell_distribution(Tvib=5000, Trot=2000)
     oh.set_intensity()
-
     wv = np.linspace(300, 320, num=3000)
-
     wv_in_range, intensity = oh.get_extended_wavelength(wv_range=(250, 370),
                                                         waveLength_exp=wv,
                                                         slit_func='Gaussian',
                                                         fwhm={'Gaussian': 0.05,
                                                               'Lorentzian': 0.05},
                                                         normalized=True)
-
-
     # plt.plot(wv, intensity)
-
-
-        return intens
-
-
-    from lmfit import Model
-
-
     # result.plot_fit() # xdata = wv
     # ydata = intensity
     #
@@ -488,11 +479,6 @@ if __name__ == '__main__':
 
 
     def func(x, Tvib, Trot_hot, Trot_cold, hot_ratio, fwhm_g, fwhm_l):
-        print(Trot_cold)
-        print(Trot_hot)
-        print(hot_ratio)
-        print(fwhm_g)
-        print(fwhm_l)
         oh.set_double_temperature_distribution(Tvib=Tvib,
                                                Trot_cold=Trot_cold, Trot_hot=Trot_hot,
                                                hot_ratio=hot_ratio)

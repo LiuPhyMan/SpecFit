@@ -559,8 +559,13 @@ class GoodnessOfFit(QW.QGroupBox):
         self._label_chisq.setText('0.0000')
 
     def set_value(self, *, p_data, o_data):
-        self._r2 = self.r2(p_data=p_data, o_data=o_data)
-        self._label_r2.setText("{:.6f}".format(self._r2))
+        _r2_new = self.r2(p_data=p_data, o_data=o_data)
+        if self._r2 < _r2_new:
+            self._label_r2.setStyleSheet("QLabel {background-color : green}")
+        else:
+            self._label_r2.setStyleSheet("QLabel {background-color : red}")
+        self._r2 = _r2_new
+        self._label_r2.setText("{:.4f}".format(self._r2))
 
 
 class NormalizedQGroupBox(QW.QGroupBox):

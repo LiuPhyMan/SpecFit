@@ -36,7 +36,7 @@ params = vmodel.make_params()
 # x = np.linspace(-1, 1, num=300)
 # y = voigt(x, 3.0, 0, 1, 0.1, 0.1)
 # for _i in range(17):
-x, y = read_spec_asc(r'E:\实验\实验_2018.07.27\Others\0-1\656.00.asc')
+x, y = read_spec_asc(r'O:\_实验_SpecData\2018.07.27\Others\1-1\656.00.asc')
 y = y[np.logical_and(x < 659, 654 < x)]
 x = x[np.logical_and(x < 659, 654 < x)]
 
@@ -46,12 +46,18 @@ params['y0'].set(value=y.min(), min=-np.inf, max=np.inf)
 params['fG'].set(value=0.03, min=0, max=1)
 params['fL'].set(value=0.03, min=0, max=1)
 out = vmodel.fit(y, params,
-                 fit_kws=dict(ftol=1e-12, xtol=1e-12), x=x)
+                 fit_kws=dict(ftol=1e-15, xtol=1e-15), x=x)
 # print(out.fit_report())
 # print(out.success)
 # print(out.redchi)
 out.plot()
-_str = '{g:.6f} {g_err:.6f} {l:.6f} {l_err:.6f} {A:.6f} {resi:.6f} {ratio:.6f}'
+_str = r"""
+wG {g:.6f} +/- {g_err:.6f} 
+wL {l:.6f} +/- {l_err:.6f} 
+{A:.6f} 
+{resi:.6f}
+ {ratio:.6f}
+"""
 print(_str.format(g=out.params['fG'].value,
                   g_err=out.params['fG'].stderr,
                   l=out.params['fL'].value,
