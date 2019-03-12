@@ -59,6 +59,7 @@ class GUISpectra(QW.QMainWindow):
         self._exp_data = dict(wavelength=None, intensity=None)
         self._output = QW.QTextEdit()
         self._output.setFont(QFont("Consolas", 11))
+        self._fit_kws = dict(ftol=1e-7, xtol=1e-7)
         self._set_button_layout()
         self._set_layout()
         self._set_toolbar()
@@ -212,6 +213,16 @@ class GUISpectra(QW.QMainWindow):
         self._plot_buttons['clear_sim'].clicked.connect(self._spectra_plot.cls_sim_line)
         self._plot_buttons['auto_scale'].clicked.connect(self._spectra_plot.auto_scale)
 
+    def wave_intens_exp_in_range(self):
+        r"""Returns wave_exp, intensity_exp in the range."""
+        wv_range = self._wavelength_range.value()
+        wave_exp = self._exp_data["wavelength"]
+        intens_exp = self._exp_data["intensity"]
+        _boolean_in_range = np.logical_and(wv_range[0] < wave_exp, wave_exp < wv_range[1])
+        wave_in_range = wave_exp[_boolean_in_range]
+        intens_in_range = intens_exp[_boolean_in_range]
+        return wave_in_range, intens_in_range
+
     # ------------------------------------------------------------------------------------------- #
     def _evolve_spectra(self, _spc_func, wv_range, slit_func_name,
                         x, Tvib, Trot_cold, Trot_hot,
@@ -259,15 +270,6 @@ class GUISpectra(QW.QMainWindow):
         _corrected_intensity = self.y_correct_func(_, intens)
         return _corrected_intensity
 
-    def wavelength_in_range(self):
-        wv_range = self._wavelength_range.value()
-        wave_exp = self._exp_data["wavelength"]
-        intens_exp = self._exp_data["intensity"]
-        _boolean_in_range = np.logical_and(wv_range[0] < wave_exp, wave_exp < wv_range[1])
-        wave_in_range = wave_exp[_boolean_in_range]
-        intens_in_range = intens_exp[_boolean_in_range]
-        return wave_in_range, intens_in_range
-
     def get_sim_data(self):
         r"""
         Get the synthetic spectra based on the parameters on the panel.
@@ -275,14 +277,12 @@ class GUISpectra(QW.QMainWindow):
         spc_func = self._spectra_tree.spectra_func
         wv_range = self._wavelength_range.value()
         slit_func = self._parameters_input._fwhm.para_form()
+        # TODO _exp_data['wavelength'} should be replaced by a shorter one?
         intensity_correct = self._evolve_spectra(spc_func, wv_range, slit_func,
                                                  self._exp_data['wavelength'],
                                                  *self._parameters_input.value())
-        wave_exp = self._exp_data['wavelength']
-        intens_exp = self._exp_data["intensity"]
-        _boolean_in_range = np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])
-        wave_in_range = wave_exp[_boolean_in_range]
-        intens_in_range = intens_exp[_boolean_in_range]
+        # --------------------------------------------------------------------------------------- #
+        wave_in_range, intens_in_range = self.wavelength_intens_in_range()
         self._goodness_of_fit.set_value(p_data=intensity_correct, o_data=intens_in_range)
         return wave_in_range, intensity_correct
 
@@ -337,16 +337,10 @@ class GUISpectra(QW.QMainWindow):
         _spc_func = self._spectra_tree.spectra_func
         wv_range = self._wavelength_range.value()
         slit_func_name = self._parameters_input._fwhm.para_form()
-        # --------------------------------------------------------------------------------------- #
-        wave_exp = self._exp_data['wavelength']
-        intens_exp = self._exp_data['intensity']
-        _bool = np.logical_and(wave_exp < wv_range[1], wave_exp > wv_range[0])
-        wave_in_range = wave_exp[_bool]
-        intens_in_range = intens_exp[_bool]
 
-        def func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
-                 x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
-                 y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
+        def fit_func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
+                     x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
+                     y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
             return self._evolve_spectra(_spc_func, wv_range, slit_func_name,
                                         x, Tvib, Trot_cold, Trot_hot, hot_ratio,
                                         fwhm_g, fwhm_l,
@@ -356,7 +350,12 @@ class GUISpectra(QW.QMainWindow):
 
         # --------------------------------------------------------------------------------------- #
         #   Build model
-        spectra_fit_model = Model(func)
+        spectra_fit_model = Model(fit_func)
+        # --------------------------------------------------------------------------------------- #
+        #   Parameters
+        #       init values
+        #       range
+        #       vary
         params = spectra_fit_model.make_params()
         init_value = self._parameters_input.value()
         range_dict = dict(Tvib=(300, 10000),
@@ -374,7 +373,6 @@ class GUISpectra(QW.QMainWindow):
                           y_offset_k0=(-np.inf, np.inf),
                           y_offset_c0=(-np.inf, np.inf),
                           y_offset_I0=(0, np.inf))
-        #   Set parameters properties. (min, max, vary, value)
         for _i, _key in enumerate(('Tvib', 'Trot_cold', 'Trot_hot', 'hot_ratio',
                                    'fwhm_g', 'fwhm_l',
                                    'x_offset_x0', 'x_offset_k0', 'x_offset_k1', 'x_offset_k2',
@@ -384,21 +382,26 @@ class GUISpectra(QW.QMainWindow):
             params[_key].set(vary=self._parameters_input.is_variable_state()[_i])
             params[_key].set(value=init_value[_i])
 
+        # --------------------------------------------------------------------------------------- #
+        wave_in_range, intens_in_range = self.wavelength_intens_in_range()
         self._sim_result = spectra_fit_model.fit(intens_in_range, params=params,
                                                  method='least_squares',
-                                                 fit_kws=dict(ftol=1e-7,
-                                                              xtol=1e-7),
+                                                 fit_kws=self._fit_kws,
                                                  x=wave_in_range)
         self.spectra_fit_model = spectra_fit_model
+        #   Plot the simulated line on the spectra plot.
         self._spectra_plot.cls_sim_line()
-        self._spectra_plot.set_sim_line(xdata=wave_in_range,
-                                        ydata=self._sim_result.best_fit)
+        self._spectra_plot.set_sim_line(xdata=wave_in_range, ydata=self._sim_result.best_fit)
+        #   Output the simulated variables to the parameters panel.
         self._parameters_input.set_value(**self._sim_result.values)
+        #   Show the goodness of fit.
         self._goodness_of_fit.set_value(p_data=self._sim_result.best_fit,
                                         o_data=self._sim_result.data)
-        self._output.setText(self.simulated_result_to_copy())
+        self._output.setText(self.simulated_result_str())
+        #   Show report.
         self.show_report()
 
+    # ------------------------------------------------------------------------------------------- #
     def mouse_move(self, event):
         if event.inaxes:
             self.statusBar().showMessage('x={x:.2f}, y={y:.2f}'.format(x=event.xdata,
@@ -406,7 +409,7 @@ class GUISpectra(QW.QMainWindow):
         else:
             self.statusBar().showMessage('Ready')
 
-    def simulated_result_to_copy(self):
+    def simulated_result_str(self):
         def get_print_str(param, _format):
             value = param.value
             if param.vary:
@@ -450,20 +453,11 @@ class GUISpectra(QW.QMainWindow):
         msg.setInformativeText(_str)
         msg.setFont(QFont('Consolas', 12))
         msg.setWindowTitle('Simulation Report')
-        msg.setStandardButtons(QW.QMessageBox.Save | QW.QMessageBox.Close)
+        msg.setStandardButtons(QW.QMessageBox.Close)
         msg.exec_()
 
-    def print_sim_result(self):
-        output = []
-        _str = '{value:.3e} {stderr:.3e}'
-        for _ in ('Tvib', 'Trot_cold', 'fwhm_g', 'fwhm_l'):
-            print(_)
-            output.append(_str.format(value=self._sim_result.params[_].value,
-                                      stderr=self._sim_result.params[_].stderr))
-        output.append('R2 = {r2:.4f}'.format(r2=self._goodness_of_fit._r2))
-        print('\n'.join(output))
 
-
+# ----------------------------------------------------------------------------------------------- #
 class Temp(QW.QMainWindow):
 
     def __init__(self, parent=None):
