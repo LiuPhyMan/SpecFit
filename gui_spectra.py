@@ -12,6 +12,8 @@ import os
 import re
 import sys
 import numpy as np
+from scipy.optimize import curve_fit
+from matplotlib import pyplot as plt
 import time
 from spectra import OHSpectra
 from lmfit import Model
@@ -29,6 +31,7 @@ from qtwidget import (SpectraPlot,
                       BandBranchesQTreeWidget,
                       NormalizedQGroupBox,
                       SizeInput,
+                      FitArgsInput,
                       ExpLinesQTreeWidget)
 
 
@@ -52,6 +55,7 @@ class GUISpectra(QW.QMainWindow):
         self._report = ReportQWidget()
         self._branch_tree = BandBranchesQTreeWidget()
         self._resize_input = SizeInput(init_width=init_width, init_height=init_height)
+        self._fit_kws_input = FitArgsInput()
         self._sim_result = None
         self._goodness_of_fit = GoodnessOfFit()
         self._normalized_factor = 1
@@ -59,7 +63,7 @@ class GUISpectra(QW.QMainWindow):
         self._exp_data = dict(wavelength=None, intensity=None)
         self._output = QW.QTextEdit()
         self._output.setFont(QFont("Consolas", 11))
-        self._fit_kws = dict(ftol=1e-7, xtol=1e-7)
+        self._output.setFixedWidth(300)
         self._set_button_layout()
         self._set_layout()
         self._set_toolbar()
@@ -69,21 +73,25 @@ class GUISpectra(QW.QMainWindow):
 
     def _set_dockwidget(self):
         _default_features = QW.QDockWidget.DockWidgetClosable | QW.QDockWidget.DockWidgetFloatable
-        _list = ['Branch', 'Resize']
+        _list = ['Branch', 'Resize', "Fit_Args"]
         _dock_dict = dict()
         for _ in _list:
             _dock_dict[_] = QW.QDockWidget(_, self)
             if _ == 'Branch':
                 _dock_dict[_].setWidget(self._branch_tree)
-            else:
+            elif _ == "Resize":
                 _dock_dict[_].setWidget(self._resize_input)
+            elif _ == "Fit_Args":
+                _dock_dict[_].setWidget(self._fit_kws_input)
+            else:
+                continue
             _dock_dict[_].setFeatures(_default_features)
             _dock_dict[_].setVisible(False)
             _dock_dict[_].setFloating(True)
             _action = _dock_dict[_].toggleViewAction()
             _action.setCheckable(True)
             _action.setChecked(False)
-            _action.setFont(QFont('Ubuntu', 14))
+            _action.setFont(QFont('Ubuntu', 10))
             _action.setText(_)
             self.toolbar.addAction(_action)
 
@@ -101,7 +109,8 @@ class GUISpectra(QW.QMainWindow):
         self.toolbar.addAction(report_action)
         report_action.triggered.connect(self.show_report)
 
-    def _get_buttion(self, text, *, height=None):
+    @staticmethod
+    def _get_pushbutton(text, *, height=None):
         _ = BetterQPushButton(text)
         if height:
             _.setFixedHeight(height)
@@ -111,16 +120,17 @@ class GUISpectra(QW.QMainWindow):
         self.button_layout = QW.QVBoxLayout()
         sub_layout = QW.QGridLayout()
         self._plot_buttons = dict()
-        self._plot_buttons['clear_sim'] = self._get_buttion("ClearSim", height=30)
-        self._plot_buttons['clear_exp'] = self._get_buttion('ClearExp', height=30)
-        self._plot_buttons['add_sim'] = self._get_buttion("AddSim", height=30)
-        # self._plot_buttons['add_exp'] = BetterButton('Add&Exp')
-        self._plot_buttons['auto_scale'] = self._get_buttion("&AutoScale", height=30)
-        self._plot_buttons['fit'] = self._get_buttion('&Fit', height=60)
+        self._plot_buttons['clear_sim'] = self._get_pushbutton("ClearSim", height=30)
+        self._plot_buttons['clear_exp'] = self._get_pushbutton('ClearExp', height=30)
+        self._plot_buttons['add_sim'] = self._get_pushbutton("AddSim", height=30)
+        self._plot_buttons['auto_scale'] = self._get_pushbutton("&AutoScale", height=30)
+        self._plot_buttons['fit'] = self._get_pushbutton('&Fit', height=60)
+        self._plot_buttons['FitDistrbtn'] = self._get_pushbutton('FitDistrbtn', height=30)
         sub_layout.addWidget(self._plot_buttons['auto_scale'], 0, 0)
         sub_layout.addWidget(self._plot_buttons['fit'], 1, 0)
         sub_layout.addWidget(self._plot_buttons['clear_sim'], 2, 0)
         sub_layout.addWidget(self._plot_buttons['clear_exp'], 3, 0)
+        sub_layout.addWidget(self._plot_buttons['FitDistrbtn'], 4, 0)
         self.button_layout.addLayout(sub_layout)
         self.button_layout.addStretch(1)
 
@@ -180,8 +190,6 @@ class GUISpectra(QW.QMainWindow):
             self._exp_data = dict()
             self._exp_data['wavelength'] = xdata
             self._exp_data['intensity'] = ydata
-            # self._wavelength_range.set_value(_min=xdata.min(),
-            #                                  _max=xdata.max())
             self._spectra_plot.auto_scale()
 
         def _parameters_input_callback():
@@ -196,32 +204,45 @@ class GUISpectra(QW.QMainWindow):
             self._spectra_plot.canvas.setFixedWidth(width * 100 * 0.9)
             self._spectra_plot.canvas.setFixedHeight(height * 100 * 0.9)
 
-        def _band_tree_callback():
+        def _branch_tree_callback():
             self._spectra_plot.cls_line_intensity()
             self._spectra_plot.cls_texts()
             for _band, _v_upper, _v_lower, _branch in self._branch_tree.get_select_state():
                 self.plot_line_intensity(band=_band, v_upper=_v_upper, v_lower=_v_lower,
                                          branch=_branch)
 
-        self._spectra_plot.figure.canvas.mpl_connect('motion_notify_event', self.mouse_move)
+        def plot_mouse_move_callback(event):
+            if event.inaxes:
+                self.statusBar().showMessage('x={x:.2f}, y={y:.2f}'.format(x=event.xdata,
+                                                                           y=event.ydata))
+            else:
+                self.statusBar().showMessage('Ready')
+
+        #   file read, parameters input, buttons
         self._file_read.TextChangedSignal.connect(_file_read_callback)
         self._parameters_input.valueChanged.connect(_parameters_input_callback)
-        self._resize_input.valueChanged.connect(lambda: _resize_plot(self._resize_input.value()))
-        self._branch_tree.stateChanged.connect(_band_tree_callback)
         self._plot_buttons['fit'].clicked.connect(self.sim_exp)
         self._plot_buttons['clear_exp'].clicked.connect(self._spectra_plot.cls_exp_lines)
         self._plot_buttons['clear_sim'].clicked.connect(self._spectra_plot.cls_sim_line)
         self._plot_buttons['auto_scale'].clicked.connect(self._spectra_plot.auto_scale)
+        self._plot_buttons['FitDistrbtn'].clicked.connect(self.sim_exp_by_distribution)
+        #   spectra plot
+        self._spectra_plot.figure.canvas.mpl_connect('motion_notify_event',
+                                                     plot_mouse_move_callback)
+        #   resize, branch_tree AT dockwidgets.
+        self._resize_input.valueChanged.connect(lambda: _resize_plot(self._resize_input.value()))
+        self._branch_tree.stateChanged.connect(_branch_tree_callback)
 
+    # ------------------------------------------------------------------------------------------- #
     def wave_intens_exp_in_range(self):
         r"""Returns wave_exp, intensity_exp in the range."""
         wv_range = self._wavelength_range.value()
         wave_exp = self._exp_data["wavelength"]
         intens_exp = self._exp_data["intensity"]
         _boolean_in_range = np.logical_and(wv_range[0] < wave_exp, wave_exp < wv_range[1])
-        wave_in_range = wave_exp[_boolean_in_range]
-        intens_in_range = intens_exp[_boolean_in_range]
-        return wave_in_range, intens_in_range
+        wave_exp_in_range = wave_exp[_boolean_in_range]
+        intens_exp_in_range = intens_exp[_boolean_in_range]
+        return wave_exp_in_range, intens_exp_in_range
 
     # ------------------------------------------------------------------------------------------- #
     def _evolve_spectra(self, _spc_func, wv_range, slit_func_name,
@@ -249,7 +270,7 @@ class GUISpectra(QW.QMainWindow):
         _spc_func.set_intensity()
         # --------------------------------------------------------------------------------------- #
         #   3. Correct the wavelength and its range.
-        #       This part is associated with the wavelength correct and intensity correct.
+        #       This part is associated with the wavelength correct.
         x_correct_kwargs = dict(x0=x_offset_x0,
                                 k0=x_offset_k0, k1=x_offset_k1, k2=x_offset_k2, k3=x_offset_k3)
         y_correct_kwargs = dict(x0=y_offset_x0,
@@ -258,18 +279,23 @@ class GUISpectra(QW.QMainWindow):
         self.y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_kwargs)
         self.x_correct_func_reversed = self._parameters_input._x_offset.correct_func_reversed(
             **x_correct_kwargs)
+        #   Calculate the absolute wavelength position to evolve the intensity and its range.
         wave_range_corrected = self.x_correct_func(wv_range)
         wavelength_corrected = self.x_correct_func(x)
         # --------------------------------------------------------------------------------------- #
-        _, intens = _spc_func.get_extended_wavelength(wavelength_range=wave_range_corrected,
-                                                      waveLength_exp=wavelength_corrected,
+        #   4. Evolve the spectra on the corrected wavelenth.
+        _, intens = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
+                                                      wavelength_range=wave_range_corrected,
                                                       slit_func=slit_func_name,
                                                       fwhm={'Gaussian': fwhm_g,
                                                             'Lorentzian': fwhm_l},
                                                       normalized=True)
+        # --------------------------------------------------------------------------------------- #
+        #   5. Correct the intensity.
         _corrected_intensity = self.y_correct_func(_, intens)
         return _corrected_intensity
 
+    # ------------------------------------------------------------------------------------------- #
     def get_sim_data(self):
         r"""
         Get the synthetic spectra based on the parameters on the panel.
@@ -277,14 +303,12 @@ class GUISpectra(QW.QMainWindow):
         spc_func = self._spectra_tree.spectra_func
         wv_range = self._wavelength_range.value()
         slit_func = self._parameters_input._fwhm.para_form()
-        # TODO _exp_data['wavelength'} should be replaced by a shorter one?
-        intensity_correct = self._evolve_spectra(spc_func, wv_range, slit_func,
-                                                 self._exp_data['wavelength'],
-                                                 *self._parameters_input.value())
-        # --------------------------------------------------------------------------------------- #
-        wave_in_range, intens_in_range = self.wavelength_intens_in_range()
-        self._goodness_of_fit.set_value(p_data=intensity_correct, o_data=intens_in_range)
-        return wave_in_range, intensity_correct
+        intensity_simulated = self._evolve_spectra(spc_func, wv_range, slit_func,
+                                                   self._exp_data['wavelength'],
+                                                   *self._parameters_input.value())
+        wave_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
+        self._goodness_of_fit.set_value(p_data=intensity_simulated, o_data=intens_exp_in_range)
+        return wave_exp_in_range, intensity_simulated
 
     def plot_sim(self):
         self._spectra_plot.cls_sim_line()
@@ -383,15 +407,15 @@ class GUISpectra(QW.QMainWindow):
             params[_key].set(value=init_value[_i])
 
         # --------------------------------------------------------------------------------------- #
-        wave_in_range, intens_in_range = self.wavelength_intens_in_range()
-        self._sim_result = spectra_fit_model.fit(intens_in_range, params=params,
+        wave_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
+        self._sim_result = spectra_fit_model.fit(intens_exp_in_range, params=params,
                                                  method='least_squares',
-                                                 fit_kws=self._fit_kws,
-                                                 x=wave_in_range)
+                                                 fit_kws=self._fit_kws_input.value(),
+                                                 x=wave_exp_in_range)
         self.spectra_fit_model = spectra_fit_model
         #   Plot the simulated line on the spectra plot.
         self._spectra_plot.cls_sim_line()
-        self._spectra_plot.set_sim_line(xdata=wave_in_range, ydata=self._sim_result.best_fit)
+        self._spectra_plot.set_sim_line(xdata=wave_exp_in_range, ydata=self._sim_result.best_fit)
         #   Output the simulated variables to the parameters panel.
         self._parameters_input.set_value(**self._sim_result.values)
         #   Show the goodness of fit.
@@ -401,22 +425,65 @@ class GUISpectra(QW.QMainWindow):
         #   Show report.
         self.show_report()
 
-    # ------------------------------------------------------------------------------------------- #
-    def mouse_move(self, event):
-        if event.inaxes:
-            self.statusBar().showMessage('x={x:.2f}, y={y:.2f}'.format(x=event.xdata,
-                                                                       y=event.ydata))
-        else:
-            self.statusBar().showMessage('Ready')
+    def sim_exp_by_distribution(self):
+        _spc_func = self._spectra_tree.spectra_func
+        wv_range = self._wavelength_range.value()
 
+        x_correct_kwargs = self._parameters_input._x_offset.value()
+        y_correct_kwargs = self._parameters_input._y_offset.value()
+
+        x_correct_func = self._parameters_input._x_offset.correct_func(**x_correct_kwargs)
+        y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_kwargs)
+
+        slit_func_name = self._parameters_input._fwhm.para_form()
+        fwhm_g = self._parameters_input._fwhm.value()['fwhm_g']
+        fwhm_l = self._parameters_input._fwhm.value()['fwhm_l']
+
+
+        wv_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
+        wave_range_corrected = x_correct_func(wv_range)
+        wavelength_corrected = x_correct_func(wv_exp_in_range)
+        _spc_func = _spc_func.narrow_range(_range=wave_range_corrected)
+        _spc_func.set_maxwell_distribution(Tvib=4000,Trot=3000)
+        distribution_guess = _spc_func.distribution
+
+        def fit_func(x, *_distribution):
+            _spc_func.set_distribution(distribution=np.array(_distribution))
+            _spc_func.set_intensity()
+            _, in_sim = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
+                                                          wavelength_range=wave_range_corrected,
+                                                          slit_func=slit_func_name,
+                                                          fwhm=dict(Gaussian=fwhm_g,
+                                                                    Lorentzian=fwhm_l),
+                                                          normalized=True)
+            _corrected_in_sim = y_correct_func(wv_exp_in_range, in_sim)
+            return _corrected_in_sim
+
+        distribution_fitted, pcov = curve_fit(fit_func,
+                                              wv_exp_in_range,
+                                              intens_exp_in_range,
+                                              bounds=(0, np.inf),
+                                              p0=distribution_guess)
+        plt.plot(_spc_func.Fev_upper, distribution_guess/_spc_func.gJ_upper)
+        plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')
+        print(distribution_fitted)
+
+    # ------------------------------------------------------------------------------------------- #
     def simulated_result_str(self):
         def get_print_str(param, _format):
-            value = param.value
+            if param.name.startswith('fwhm'):
+                if param.vary:
+                    return '\n{v:{frmt}} +/- {err:{frmt}} pm'.format(v=param.value * 1e3,
+                                                                     err=param.stderr * 1e3,
+                                                                     frmt=_format)
+                else:
+                    return '\n{v:{frmt}} [fixed]'.format(value=param.value,
+                                                         frmt=_format)
             if param.vary:
-                return '\n{v:{frmt}} +/- {err:{frmt}}'.format(v=value, err=param.stderr,
+                return '\n{v:{frmt}} +/- {err:{frmt}}'.format(v=param.value, err=param.stderr,
                                                               frmt=_format)
             else:
-                return '\n{v:{frmt}} [fixed]'.format(value=value, frmt=_format)
+                return '\n{v:{frmt}} [fixed]'.format(value=param.value, frmt=_format)
 
         _str = r"""Simulation is {a}
         Method              : {b}
@@ -438,8 +505,10 @@ class GUISpectra(QW.QMainWindow):
                    g=self._goodness_of_fit._r2)
         _str += get_print_str(self._sim_result.params['Tvib'], '<8.2f')
         _str += get_print_str(self._sim_result.params['Trot_cold'], '<8.2f')
-        _str += get_print_str(self._sim_result.params['fwhm_g'], '<8.5f')
-        _str += get_print_str(self._sim_result.params['fwhm_l'], '<8.5f')
+        _str += get_print_str(self._sim_result.params['fwhm_g'], '<8.3f')
+        _str += get_print_str(self._sim_result.params['fwhm_l'], '<8.3f')
+        _str += "\nftol : {f:<8.2e}".format(f=self._fit_kws_input.value()['ftol'])
+        _str += "\nxtol : {f:<8.2e}".format(f=self._fit_kws_input.value()['xtol'])
         _str = re.sub(r"^\s+", r"\n", _str)
         _str = re.sub(r"\n\s+", r"\n", _str)
         return _str

@@ -18,7 +18,7 @@ from PyQt5.QtGui import QCursor, QFont
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from spectra import OHSpectra, COSpectra, AddSpectra, convolute_to_voigt
 from .widgets import QPlot
-from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox
+from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox
 from BetterQWidgets import BetterQPushButton as BetterButton
 
 _GROUPBOX_TITLE_STYLESHEET = "QGroupBox { font-weight: bold; font-family: UBuntu; font-size: 10pt}"
@@ -818,6 +818,7 @@ class CheckableQTreeWidget(QW.QTreeWidget):
         super().__init__(parent)
         self.node_dict = dict()
         self.item_dict = dict()
+        self.setFixedWidth(170)
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self._add_dict_to_tree()
         self._set_connect()
@@ -971,22 +972,54 @@ class SizeInput(QW.QDialog):
 
     def __init__(self, init_width, init_height, parent=None):
         super().__init__(parent)
-        _layout = QW.QFormLayout()
-        self._width_spinbox = QW.QSpinBox()
-        self._height_spinbox = QW.QSpinBox()
+        self._width_spinbox = BetterQDoubleSpinBox()
+        self._height_spinbox = BetterQDoubleSpinBox()
         self._width_spinbox.setValue(init_width)
         self._height_spinbox.setValue(init_height)
-        _layout.addRow('Width', self._width_spinbox)
-        _layout.addRow('Height', self._height_spinbox)
-        self.setLayout(_layout)
+        self._set_layout()
         self._set_slot()
 
     def value(self):
         return self._width_spinbox.value(), self._height_spinbox.value()
 
+    def _set_layout(self):
+        _layout = QW.QFormLayout()
+        _layout.addRow(BetterQLabel('Width'), self._width_spinbox)
+        _layout.addRow(BetterQLabel('Height'), self._height_spinbox)
+        self.setLayout(_layout)
+
     def _set_slot(self):
         self._width_spinbox.valueChanged.connect(lambda: self.valueChanged.emit())
         self._height_spinbox.valueChanged.connect(lambda: self.valueChanged.emit())
+
+
+class FitArgsInput(QW.QDialog):
+    valueChanged = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # self._ftol_spinbox = BetterQDoubleSpinBox()
+        self._ftol_spinbox = SciQDoubleSpinBox(node_range=(-15, -1))
+        # self._xtol_spinbox = BetterQDoubleSpinBox()
+        self._xtol_spinbox = SciQDoubleSpinBox(node_range=(-15, -1))
+        self._ftol_spinbox.setValue(1e-8)
+        self._xtol_spinbox.setValue(1e-8)
+        self._set_layout()
+        self._set_slot()
+
+    def value(self):
+        return dict(ftol=self._ftol_spinbox.value(),
+                    xtol=self._xtol_spinbox.value())
+
+    def _set_layout(self):
+        _layout = QW.QFormLayout()
+        _layout.addRow(BetterQLabel("ftol"), self._ftol_spinbox)
+        _layout.addRow(BetterQLabel("xtol"), self._xtol_spinbox)
+        self.setLayout(_layout)
+
+    def _set_slot(self):
+        self._ftol_spinbox.valueChanged.connect(lambda: self.valueChanged.emit())
+        self._xtol_spinbox.valueChanged.connect(lambda: self.valueChanged.emit())
 
 
 class RangeQWidget(QW.QWidget):
@@ -996,7 +1029,14 @@ class RangeQWidget(QW.QWidget):
         super().__init__(parent)
         self.min_spinBox = BetterQDoubleSpinBox()
         self.max_spinBox = BetterQDoubleSpinBox()
+        self.min_spinBox.setFixedWidth(120)
+        self.max_spinBox.setFixedWidth(120)
 
+        self._set_layout()
+        self._set_init_state()
+        self._set_slot()
+
+    def _set_layout(self):
         sub_layout = QW.QFormLayout()
         sub_layout.addRow(BetterQLabel('From'), self.min_spinBox)
         sub_layout.addRow(BetterQLabel('To'), self.max_spinBox)
@@ -1004,10 +1044,8 @@ class RangeQWidget(QW.QWidget):
         layout.addLayout(sub_layout)
         layout.addStretch(1)
         self.setLayout(layout)
-        self.set_init_state()
-        self._set_slot()
 
-    def set_init_state(self):
+    def _set_init_state(self):
         for _box in (self.min_spinBox, self.max_spinBox):
             _box.setRange(200, 900)
             _box.setDecimals(1)
@@ -1027,8 +1065,13 @@ class RangeQWidget(QW.QWidget):
         self.max_spinBox.setValue(_max)
 
     def _set_slot(self):
-        self.min_spinBox.valueChanged.connect(lambda: self.valueChanged.emit())
-        self.max_spinBox.valueChanged.connect(lambda: self.valueChanged.emit())
+        def slot_emit():
+            self.min_spinBox.setMaximum(self.max_spinBox.value())
+            self.max_spinBox.setMinimum(self.min_spinBox.value())
+            self.valueChanged.emit()
+
+        self.min_spinBox.valueChanged.connect(slot_emit)
+        self.max_spinBox.valueChanged.connect(slot_emit)
 
 
 class ReportQWidget(QW.QWidget):
@@ -1042,7 +1085,6 @@ class ReportQWidget(QW.QWidget):
         # layout.addWidget(BetterQLabel('Report'))
         layout.addWidget(self._text_edit)
         self.setLayout(layout)
-        self.setFixedWidth(450)
 
     def clear_text(self):
         self._text_edit.clear()

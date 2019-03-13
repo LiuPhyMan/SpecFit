@@ -11,6 +11,7 @@ Created on 0:31 2018/4/5
 import os
 import math
 import numpy as np
+from copy import deepcopy
 from matplotlib import pyplot as plt
 from .voigt import voigt_pseudo
 
@@ -276,13 +277,18 @@ class MoleculeSpectra(Spectra):
     def narrow_range(self, *, _range):
         _chosen = np.logical_and(_range[0] < self.wave_length, self.wave_length < _range[1])
         assert _chosen.any()
-        self.wave_number = self.wave_number[_chosen]
-        self.wave_length = self.wave_length[_chosen]
-        self.emission_coefficients = self.emission_coefficients[_chosen]
-        self.gv_upper = self.gv_upper[_chosen]
-        self.Ge_upper = self.Ge_upper[_chosen]
-        self.gJ_upper = self.gJ_upper[_chosen]
-        self.Fev_upper = self.Fev_upper[_chosen]
+        _spectra_copy = deepcopy(self)
+        _spectra_copy.wave_number = self.wave_number[_chosen]
+        _spectra_copy.wave_length = self.wave_length[_chosen]
+        _spectra_copy.emission_coefficients = self.emission_coefficients[_chosen]
+        _spectra_copy.distribution = self.distribution[_chosen]
+        _spectra_copy.intensity = self.intensity[_chosen]
+        ##
+        _spectra_copy.gv_upper = self.gv_upper[_chosen]
+        _spectra_copy.Ge_upper = self.Ge_upper[_chosen]
+        _spectra_copy.gJ_upper = self.gJ_upper[_chosen]
+        _spectra_copy.Fev_upper = self.Fev_upper[_chosen]
+        return _spectra_copy
 
     @staticmethod
     def honl_london_factor(*, band, branch):
