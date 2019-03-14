@@ -21,6 +21,7 @@ from PyQt5 import QtWidgets as QW
 from PyQt5.QtGui import QIcon, QFont
 from PyQt5.QtCore import pyqtSignal
 from BetterQWidgets import BetterQPushButton
+from BasicFunc import tracer
 from qtwidget import (SpectraPlot,
                       RangeQWidget,
                       ReadFileQWidget,
@@ -443,12 +444,18 @@ class GUISpectra(QW.QMainWindow):
         wv_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
         wave_range_corrected = x_correct_func(wv_range)
         wavelength_corrected = x_correct_func(wv_exp_in_range)
-        _spc_func = _spc_func.narrow_range(_range=wave_range_corrected)
-        _spc_func.set_maxwell_distribution(Tvib=4000,Trot=3000)
-        distribution_guess = _spc_func.distribution
+        # _spc_func = _spc_func.narrow_range(_range=wave_range_corrected)
+        _spc_func.set_maxwell_distribution(Tvib=4000, Trot=3000)
+        distribution_guess = np.hstack((_spc_func.get_level_params(_spc_func.distribution)[0],
+                                        _spc_func.get_level_params(_spc_func.distribution)[1]))
 
+
+        @tracer
         def fit_func(x, *_distribution):
-            _spc_func.set_distribution(distribution=np.array(_distribution))
+            #   Now only support OH(A-X, 0-0) band.
+            _distri_array = np.array(_distribution)
+            _spc_func.set_distribution(F1_distri=_distri_array[:42],
+                                       F2_distri=_distri_array[42:])
             _spc_func.set_intensity()
             _, in_sim = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
                                                           wavelength_range=wave_range_corrected,
@@ -459,13 +466,31 @@ class GUISpectra(QW.QMainWindow):
             _corrected_in_sim = y_correct_func(wv_exp_in_range, in_sim)
             return _corrected_in_sim
 
+        # --------------------------------------------------------------------------------------- #
+        plt.figure()
+        plt.plot(wv_exp_in_range, intens_exp_in_range)
+        _temp_in_sim = fit_func(wv_exp_in_range, *distribution_guess)
+        plt.plot(wv_exp_in_range, _temp_in_sim)
+        # --------------------------------------------------------------------------------------- #
+
         distribution_fitted, pcov = curve_fit(fit_func,
                                               wv_exp_in_range,
                                               intens_exp_in_range,
                                               bounds=(0, np.inf),
                                               p0=distribution_guess)
-        plt.plot(_spc_func.Fev_upper, distribution_guess/_spc_func.gJ_upper)
-        plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')
+
+        Fev_upper = _spc_func.get_level_params(_spc_func.Fev_upper)[0]
+        gJ_upper = _spc_func.get_level_params(_spc_func.gJ_upper)[0]
+        # --------------------------------------------------------------------------------------- #
+        # plt.figure()
+        # plt.plot(wv_exp_in_range, intens_exp_in_range)
+        _temp_in_sim = fit_func(wv_exp_in_range, *distribution_fitted)
+        plt.plot(wv_exp_in_range, _temp_in_sim, marker='.')
+        # --------------------------------------------------------------------------------------- #
+        plt.figure()
+        plt.semilogy(Fev_upper[:25], (distribution_guess[:42]/gJ_upper)[:25])
+        plt.semilogy(Fev_upper[:25], (distribution_fitted[:42]/gJ_upper)[:25])
+        # plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')
         print(distribution_fitted)
 
     # ------------------------------------------------------------------------------------------- #

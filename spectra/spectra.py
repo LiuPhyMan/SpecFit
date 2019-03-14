@@ -102,9 +102,8 @@ class Spectra(object):
         self.normalized_factor = None
 
     # ------------------------------------------------------------------------------------------- #
-    def set_distribution(self, *, distribution):
-        assert distribution.shape == self.wave_length.shape
-        self.distribution = distribution
+    def set_distribution(self):
+        pass
 
     def set_intensity(self):
         self.intensity = self.distribution * self.emission_coefficients * self.wave_number
@@ -133,7 +132,7 @@ class Spectra(object):
             _chosen = np.ones_like(self.wave_length) > 0
             wv_exp_chosen = np.ones_like(waveLength_exp) > 0
         else:
-            _range_added = 3*(fwhm['Gaussian'] + fwhm['Lorentzian'])
+            _range_added = 3 * (fwhm['Gaussian'] + fwhm['Lorentzian'])
             _chosen = np.logical_and((wavelength_range[0] - 3 * _range_added) < self.wave_length,
                                      self.wave_length < (wavelength_range[1] + 3 * _range_added))
             wv_exp_chosen = np.logical_and(wavelength_range[0] < waveLength_exp,
@@ -337,6 +336,60 @@ class OHSpectra(MoleculeSpectra):
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
 
+    def set_distribution(self, *, F1_distri, F2_distri):
+        assert F1_distri.size == 42
+        assert F2_distri.size == 42
+        self.distribution = np.zeros((40, 12))
+        self.distribution[:, 0] = F1_distri[0:40]  # P1
+        self.distribution[:, 1] = F2_distri[0:40]  # P2
+        self.distribution[:, 2] = F1_distri[1:41]  # Q1
+        self.distribution[:, 3] = F2_distri[1:41]  # Q2
+        self.distribution[:, 4] = F1_distri[2:42]  # R1
+        self.distribution[:, 5] = F2_distri[2:42]  # R2
+        self.distribution[1:, 6] = F1_distri[0:39]  # O12
+        self.distribution[:, 7] = F1_distri[1:41]  # Q12
+        self.distribution[:, 8] = F1_distri[0:40]  # P12
+        self.distribution[:, 9] = F2_distri[2:42]  # R21
+        self.distribution[:, 10] = F2_distri[1:41]  # Q21
+        self.distribution[:-1, 11] = F2_distri[3:]  # S21
+
+    def get_level_params(self, params):
+        F1_part = np.hstack((params[:, 0],
+                             params[-1, 2],
+                             params[-1, 4]))
+        F2_part = np.hstack((params[:, 1],
+                             params[-1, 3],
+                             params[-1, 5]))
+        return F1_part, F2_part
+
+    # def get_level_distribution(self):
+    #     F1_dis = np.hstack((self.distribution[:, 0],
+    #                         self.distribution[-1, 2],
+    #                         self.distribution[-1, 4]))
+    #     F2_dis = np.hstack((self.distribution[:, 1],
+    #                         self.distribution[-1, 3],
+    #                         self.distribution[-1, 5]))
+    #     return dict(F1_distri=F1_dis, F2_distri=F2_dis)
+
+    # def get_level_Fev(self):
+    #     F1_Fev = np.hstack((self.Fev_upper[:, 0],
+    #                         self.Fev_upper[-1, 2],
+    #                         self.Fev_upper[-1, 4]))
+    #     F2_Fev = np.hstack((self.Fev_upper[:, 1],
+    #                         self.Fev_upper[-1, 3],
+    #                         self.Fev_upper[-1, 5]))
+    #     return dict(F1_Fev=F1_Fev, F2_Fev=F2_Fev)
+
+    def get_level_gJ_upper(self):
+        F1_gJ = np.hstack((self.gJ_upper[:, 0],
+                           self.gJ_upper[-1, 2],
+                           self.gJ_upper[-1, 4]))
+        F2_gJ = np.hstack((self.gJ_upper[:, 1],
+                           self.gJ_upper[-1, 3],
+                           self.gJ_upper[-1, 5]))
+        return dict(F1_gJ_upper=F1_gJ,
+                    F2_gJ_upper=F2_gJ)
+
     def _set_coefs(self, *, band, v_upper, v_lower):
         assert band == 'A-X'
         # assert (v_upper, v_lower) in ((0, 0), (1, 0), (1, 1))
@@ -362,11 +415,13 @@ class OHSpectra(MoleculeSpectra):
 
     def _set_Fev(self, v_upper):
         N_max = self.wave_length.shape[0]
-        N_lower = np.tile(np.arange(1, N_max + 1), (12, 1)).transpose()
-        J_lower = N_lower + .5 * np.tile([1, -1, 1, -1, 1, -1, -1, -1, -1, 1, 1, 1], (N_max, 1))
-        N_upper = N_lower + np.tile([-1, -1, 0, 0, 1, 1, -2, 0, -1, 1, 0, 2], (N_max, 1))
-        J_upper = N_upper + .5 * np.tile([1, -1, 1, -1, 1, -1, 1, 1, 1, -1, -1, -1], (N_max, 1))
-        self.gJ_upper = 2 * J_upper + 1
+        self.N_lower = np.tile(np.arange(1, N_max + 1), (12, 1)).transpose()
+        self.J_lower = self.N_lower + .5 * np.tile([1, -1, 1, -1, 1, -1, -1, -1, -1, 1, 1, 1],
+                                                   (N_max, 1))
+        self.N_upper = self.N_lower + np.tile([-1, -1, 0, 0, 1, 1, -2, 0, -1, 1, 0, 2], (N_max, 1))
+        self.J_upper = self.N_upper + .5 * np.tile([1, -1, 1, -1, 1, -1, 1, 1, 1, -1, -1, -1],
+                                                   (N_max, 1))
+        self.gJ_upper = 2 * self.J_upper + 1
         # 1962 The ultraviolet bands of OH. Table 2
         OH_A_consts = [[16.961, 0.00204, 0.1122],
                        [16.129, 0.00203, 0.1056],
@@ -376,7 +431,7 @@ class OHSpectra(MoleculeSpectra):
         ##
         self.Fev_upper = np.zeros_like(self.gJ_upper)
         for i_branch in range(12):
-            _N = N_upper[:, i_branch]
+            _N = self.N_upper[:, i_branch]
             _average_term = Bv * _N * (_N + 1) - Dv * _N ** 2 * (_N + 1) ** 2
             if i_branch in (0, 2, 4, 6, 7, 8):  # F1
                 temp = _average_term + gama * (_N + .5)
@@ -449,6 +504,7 @@ class AddSpectra(MoleculeSpectra):
         self.gJ_upper = combine_coefs(spec0.gJ_upper, spec1.gJ_upper)
         self.Ge_upper = combine_coefs(spec0.Ge_upper, spec1.Ge_upper)
         self.Fev_upper = combine_coefs(spec0.Fev_upper, spec1.Fev_upper)
+
 
 # ----------------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
