@@ -440,7 +440,6 @@ class GUISpectra(QW.QMainWindow):
         fwhm_g = self._parameters_input._fwhm.value()['fwhm_g']
         fwhm_l = self._parameters_input._fwhm.value()['fwhm_l']
 
-
         wv_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
         wave_range_corrected = x_correct_func(wv_range)
         wavelength_corrected = x_correct_func(wv_exp_in_range)
@@ -448,7 +447,6 @@ class GUISpectra(QW.QMainWindow):
         _spc_func.set_maxwell_distribution(Tvib=4000, Trot=3000)
         distribution_guess = np.hstack((_spc_func.get_level_params(_spc_func.distribution)[0],
                                         _spc_func.get_level_params(_spc_func.distribution)[1]))
-
 
         @tracer
         def fit_func(x, *_distribution):
@@ -488,8 +486,8 @@ class GUISpectra(QW.QMainWindow):
         plt.plot(wv_exp_in_range, _temp_in_sim, marker='.')
         # --------------------------------------------------------------------------------------- #
         plt.figure()
-        plt.semilogy(Fev_upper[:25], (distribution_guess[:42]/gJ_upper)[:25])
-        plt.semilogy(Fev_upper[:25], (distribution_fitted[:42]/gJ_upper)[:25])
+        plt.semilogy(Fev_upper[:25], (distribution_guess[:42] / gJ_upper)[:25])
+        plt.semilogy(Fev_upper[:25], (distribution_fitted[:42] / gJ_upper)[:25])
         # plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')
         print(distribution_fitted)
 
