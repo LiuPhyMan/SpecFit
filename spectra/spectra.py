@@ -67,6 +67,12 @@ class MoleculeState(object):
             # 0-6
             v_term = [753.49, 2242.3, 3685.2, 5097.9, 6476.1, 7818.2, 9125.0]
             return v_term[v]
+        elif self.state == "N2(C)":
+            # v numbers : 0-4
+            # Ref :     "Improved Fits for the Vibrational and Rotational Constants of Many States
+            #           of Nitrogen and Oxygen"
+            vib_const = np.array([88977.9, 2047.18, 28.445, 2.0883, -5.350e-1])
+            return vib_const.dot(np.power(v + .5, [1, 2, 3, 4, 5]))
         else:
             return self.we * (v + .5) - self.wexe * (v + .5) ** 2
 
@@ -302,6 +308,25 @@ class MoleculeSpectra(Spectra):
                 raise Exception('branch is error')
 
 
+class N2Spectra(MoleculeSpectra):
+    r"""
+
+    """
+
+    def __init__(self, *, band, v_upper, v_lower):
+        super().__init__()
+        self._set_coefs(band=band, v_upper=v_upper, v_lower=v_lower)
+
+    def _set_coefs(self, *, band, v_upper, v_lower):
+        r""" wavelength, wavenumber, emission_coefs """
+
+    def _set_Ge(self, v_upper):
+        self.gv_upper = np.ones_like(self.wave_length)
+        self.Ge_upper = np.ones_like(self.wave_length) * MoleculeState("N2(C)").Ge_term(v_upper)
+
+    def _set_Fev(self, v_upper):
+
+
 class OHSpectra(MoleculeSpectra):
     r"""
     branch : P1, P2, Q1, Q2, R1, R2, O12, Q12, P12, R21, Q21, S21
@@ -362,24 +387,6 @@ class OHSpectra(MoleculeSpectra):
                              params[-1, 5]))
         return F1_part, F2_part
 
-    # def get_level_distribution(self):
-    #     F1_dis = np.hstack((self.distribution[:, 0],
-    #                         self.distribution[-1, 2],
-    #                         self.distribution[-1, 4]))
-    #     F2_dis = np.hstack((self.distribution[:, 1],
-    #                         self.distribution[-1, 3],
-    #                         self.distribution[-1, 5]))
-    #     return dict(F1_distri=F1_dis, F2_distri=F2_dis)
-
-    # def get_level_Fev(self):
-    #     F1_Fev = np.hstack((self.Fev_upper[:, 0],
-    #                         self.Fev_upper[-1, 2],
-    #                         self.Fev_upper[-1, 4]))
-    #     F2_Fev = np.hstack((self.Fev_upper[:, 1],
-    #                         self.Fev_upper[-1, 3],
-    #                         self.Fev_upper[-1, 5]))
-    #     return dict(F1_Fev=F1_Fev, F2_Fev=F2_Fev)
-
     def get_level_gJ_upper(self):
         F1_gJ = np.hstack((self.gJ_upper[:, 0],
                            self.gJ_upper[-1, 2],
@@ -410,8 +417,7 @@ class OHSpectra(MoleculeSpectra):
 
     def _set_Ge(self, v_upper):
         self.gv_upper = np.ones_like(self.wave_length)
-        self.Ge_upper = np.ones_like(self.wave_length) * \
-                        MoleculeState('OH(A)').Ge_term(v=v_upper)
+        self.Ge_upper = np.ones_like(self.wave_length) * MoleculeState('OH(A)').Ge_term(v_upper)
 
     def _set_Fev(self, v_upper):
         N_max = self.wave_length.shape[0]
