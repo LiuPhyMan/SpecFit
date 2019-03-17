@@ -71,8 +71,8 @@ class MoleculeState(object):
             # v numbers : 0-4
             # Ref :     "Improved Fits for the Vibrational and Rotational Constants of Many States
             #           of Nitrogen and Oxygen"
-            vib_const = np.array([88977.9, 2047.18, 28.445, 2.0883, -5.350e-1])
-            return vib_const.dot(np.power(v + .5, [1, 2, 3, 4, 5]))
+            vib_const = np.array([2047.18, -28.445, 2.0883, -5.350e-1])
+            return vib_const.dot(np.power(v + .5, [1, 2, 3, 4]))
         else:
             return self.we * (v + .5) - self.wexe * (v + .5) ** 2
 
@@ -312,19 +312,58 @@ class N2Spectra(MoleculeSpectra):
     r"""
 
     """
+    __FRANCK_CONDON_FACTORS = np.array([.4527, ])
 
     def __init__(self, *, band, v_upper, v_lower):
         super().__init__()
-        self._set_coefs(band=band, v_upper=v_upper, v_lower=v_lower)
+        self.band = band
+        self.v_upper = v_upper
+        self.v_lower = v_lower
+        self._set_coefs()
 
-    def _set_coefs(self, *, band, v_upper, v_lower):
-        r""" wavelength, wavenumber, emission_coefs """
+    def _set_coefs(self):
+        r""" wavelength, wavenumber, emission_coefs"""
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        assert self.band == 'C-B'
+        wv_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavelength_vac.dat".format(v0=self.v_upper,
+                                                                             v1=self.v_lower)
+        self.wave_length = np.loadtxt(wv_path)
+        self.wave_number = np.divide(1e7, self.wave_length,
+                                     out=np.zeros_like(self.wave_length),
+                                     where=(self.wave_length > 1))
 
-    def _set_Ge(self, v_upper):
+        self.J_upper = np.tile(np.arange(0, 171), (9, 1)).transpose()
+        self.gJ_upper = 2 * self.J_upper + 1
+        self._set_Ge()
+
+    def _set_Ge(self):
+        assert self.band == "C-B"
         self.gv_upper = np.ones_like(self.wave_length)
-        self.Ge_upper = np.ones_like(self.wave_length) * MoleculeState("N2(C)").Ge_term(v_upper)
+        self.Ge_upper = np.ones_like(self.wave_length) * MoleculeState("N2(C)").Ge_term(
+            self.v_upper)
 
-    def _set_Fev(self, v_upper):
+    def _set_Fev(self):
+        # wvnm_path = dir_path + r"\OH(A-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
+        # ec_path = dir_path + r"\OH(A-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
+        pass
+
+    def _set_emission_coefficients(self):
+        sjj = self.honl_london_factor()
+        self.emission_coefficients = self.wave_number ** 3 * self.frank_condon_factor() * sjj / self.gJ_upper
+
+    def honl_london_factor(self):
+        if self.band == "C-B":
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            _path = dir_path + r"\N2(C-B)\honl_factor.dat"
+            return np.loadtxt(_path)
+        else:
+            raise Exception("The band is not supported.")
+
+    def frank_condon_factor(self):
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        _path = dir_path + r"\N2(C-B)\frank_condon_factor.dat"
+        factor_matrix = np.loadtxt(_path)
+        return factor_matrix[self.v_lower,self.v_upper]
 
 
 class OHSpectra(MoleculeSpectra):
