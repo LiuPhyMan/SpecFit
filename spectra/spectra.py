@@ -312,7 +312,6 @@ class N2Spectra(MoleculeSpectra):
     r"""
 
     """
-    __FRANCK_CONDON_FACTORS = np.array([.4527, ])
 
     def __init__(self, *, band, v_upper, v_lower):
         super().__init__()
@@ -335,6 +334,8 @@ class N2Spectra(MoleculeSpectra):
         self.J_upper = np.tile(np.arange(0, 171), (9, 1)).transpose()
         self.gJ_upper = 2 * self.J_upper + 1
         self._set_Ge()
+        self._set_Fev()
+        self._set_emission_coefficients()
 
     def _set_Ge(self):
         assert self.band == "C-B"
@@ -345,7 +346,10 @@ class N2Spectra(MoleculeSpectra):
     def _set_Fev(self):
         # wvnm_path = dir_path + r"\OH(A-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
         # ec_path = dir_path + r"\OH(A-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
-        pass
+        # if self.v_upper
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        _path = dir_path + r"\N2(C-B)\Fev_{v}.dat".format(v=self.v_upper)
+        self.Fev_upper = np.loadtxt(_path)
 
     def _set_emission_coefficients(self):
         sjj = self.honl_london_factor()
@@ -363,7 +367,7 @@ class N2Spectra(MoleculeSpectra):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         _path = dir_path + r"\N2(C-B)\frank_condon_factor.dat"
         factor_matrix = np.loadtxt(_path)
-        return factor_matrix[self.v_lower,self.v_upper]
+        return factor_matrix[self.v_lower, self.v_upper]
 
 
 class OHSpectra(MoleculeSpectra):

@@ -16,7 +16,7 @@ from matplotlib import ticker
 from PyQt5 import QtWidgets as QW
 from PyQt5.QtGui import QCursor, QFont
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from spectra import OHSpectra, COSpectra, AddSpectra, convolute_to_voigt
+from spectra import OHSpectra, COSpectra, N2Spectra, AddSpectra, convolute_to_voigt
 from .widgets import QPlot
 from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox
 from BetterQWidgets import BetterQPushButton as BetterButton
@@ -884,7 +884,20 @@ class SpectraFunc(CheckableQTreeWidget):
                          '0-5 662.0 nm',
                          '1-0 412.4 nm',
                          '1-1 439.3 nm',
-                         '1-2 469.7 nm']}
+                         '1-2 469.7 nm'],
+             'N2(C-B)': ['0-0 337.0 nm',
+                         '1-1 333.8 nm',
+                         '2-2 330.9 nm',
+                         '0-1 357.6 nm',
+                         '1-2 353.6 nm',
+                         '2-3 349.9 nm',
+                         '3-4 346.8 nm',
+                         '1-0 315.8 nm',
+                         '2-1 313.5 nm',
+                         '3-2 311.5 nm',
+                         '0-2 380.4 nm',
+                         '1-3 375.4 nm',
+                         '2-4 370.9 nm']}
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -902,6 +915,8 @@ class SpectraFunc(CheckableQTreeWidget):
                 func = OHSpectra
             if molecule == 'CO':
                 func = COSpectra
+            if molecule == 'N2':
+                func = N2Spectra
             return func(band=band, v_upper=int(v_upper_str), v_lower=int(v_lower_str))
 
         if len(spectra_list) == 1:
