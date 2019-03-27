@@ -595,4 +595,5 @@ if __name__ == "__main__":
     window = GUISpectra()
     # window = Temp()
     window.show()
-    app.exec_()
+    # app.exec_()
+    app.aboutToQuit.connect(app.deleteLater)
