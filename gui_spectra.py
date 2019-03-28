@@ -18,8 +18,8 @@ import time
 from spectra import OHSpectra
 from lmfit import Model
 from PyQt5 import QtWidgets as QW
-from PyQt5.QtGui import QIcon, QFont
-from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QIcon, QFont, QCursor
+from PyQt5.QtCore import Qt, pyqtSignal
 from BetterQWidgets import BetterQPushButton
 from BasicFunc import tracer
 from qtwidget import (SpectraPlot,
@@ -35,6 +35,8 @@ from qtwidget import (SpectraPlot,
                       FitArgsInput,
                       ExpLinesQTreeWidget)
 
+_DEFAULT_TOOLBAR_FONT = QFont("Helvetica", 10)
+
 
 class GUISpectra(QW.QMainWindow):
 
@@ -47,7 +49,7 @@ class GUISpectra(QW.QMainWindow):
         self.setWindowIcon(QIcon(dir_path + r'\gui_materials/matplotlib_large.png'))
         self.setCentralWidget(self.cenWidget)
 
-        init_width, init_height = 15, 5
+        init_width, init_height = 12, 5
         self._spectra_plot = SpectraPlot(self.cenWidget, width=init_width, height=init_height)
         self._file_read = ReadFileQWidget()
         self._spectra_tree = SpectraFunc()
@@ -67,32 +69,29 @@ class GUISpectra(QW.QMainWindow):
         self._output.setFixedWidth(300)
         self._set_button_layout()
         self._set_layout()
-        self._set_toolbar()
-        self._set_connect()
         self._set_menubar()
+        self._set_toolbar()
         self._set_dockwidget()
+        self._set_connect()
 
     def _set_dockwidget(self):
         _default_features = QW.QDockWidget.DockWidgetClosable | QW.QDockWidget.DockWidgetFloatable
-        _list = ['Branch', 'Resize', "Fit_Args"]
+        _list = ['Branch', 'Resize', "Fit_Args", "Output"]
+        _widgets_to_dock = [self._branch_tree,
+                            self._resize_input,
+                            self._fit_kws_input,
+                            self._output]
         _dock_dict = dict()
-        for _ in _list:
+        for _, _widget in zip(_list, _widgets_to_dock):
             _dock_dict[_] = QW.QDockWidget(_, self)
-            if _ == 'Branch':
-                _dock_dict[_].setWidget(self._branch_tree)
-            elif _ == "Resize":
-                _dock_dict[_].setWidget(self._resize_input)
-            elif _ == "Fit_Args":
-                _dock_dict[_].setWidget(self._fit_kws_input)
-            else:
-                continue
+            _dock_dict[_].setWidget(_widget)
             _dock_dict[_].setFeatures(_default_features)
             _dock_dict[_].setVisible(False)
             _dock_dict[_].setFloating(True)
+            _dock_dict[_].setCursor(QCursor(Qt.PointingHandCursor))
             _action = _dock_dict[_].toggleViewAction()
-            _action.setCheckable(True)
             _action.setChecked(False)
-            _action.setFont(QFont('Ubuntu', 10))
+            _action.setFont(_DEFAULT_TOOLBAR_FONT)
             _action.setText(_)
             self.toolbar.addAction(_action)
 
@@ -104,11 +103,12 @@ class GUISpectra(QW.QMainWindow):
         self.toolbar = self.addToolBar('toolbar')
         save_action = QW.QAction('Save', self)
         report_action = QW.QAction('Report', self)
-        save_action.setFont(QFont('Ubuntu', 15))
-        report_action.setFont(QFont('Ubuntu', 15))
+        save_action.setFont(_DEFAULT_TOOLBAR_FONT)
+        report_action.setFont(_DEFAULT_TOOLBAR_FONT)
         self.toolbar.addAction(save_action)
         self.toolbar.addAction(report_action)
         report_action.triggered.connect(self.show_report)
+        self.toolbar.addSeparator()
 
     @staticmethod
     def _get_pushbutton(text, *, height=None):
@@ -150,7 +150,6 @@ class GUISpectra(QW.QMainWindow):
         sub_layout.addWidget(self._normalized_groupbox)
         sub_layout.addLayout(self.button_layout)
         sub_layout.addWidget(self._goodness_of_fit)
-        sub_layout.addWidget(self._output)
         sub_layout.addStretch(1)
         _layout.addLayout(sub_layout)
         _layout.addStretch(1)
