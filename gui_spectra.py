@@ -76,11 +76,12 @@ class GUISpectra(QW.QMainWindow):
 
     def _set_dockwidget(self):
         _default_features = QW.QDockWidget.DockWidgetClosable | QW.QDockWidget.DockWidgetFloatable
-        _list = ['Branch', 'Resize', "Fit_Args", "Output"]
+        _list = ['Branch', 'Resize', "Fit_Args", "Output", "Bands"]
         _widgets_to_dock = [self._branch_tree,
                             self._resize_input,
                             self._fit_kws_input,
-                            self._output]
+                            self._output,
+                            self._spectra_tree]
         _dock_dict = dict()
         for _, _widget in zip(_list, _widgets_to_dock):
             _dock_dict[_] = QW.QDockWidget(_, self)
@@ -143,7 +144,7 @@ class GUISpectra(QW.QMainWindow):
         sub_layout = QW.QHBoxLayout()
         left_layout = QW.QVBoxLayout()
         left_layout.addWidget(self._wavelength_range)
-        left_layout.addWidget(self._spectra_tree)
+        # left_layout.addWidget(self._spectra_tree)
         left_layout.addStretch(1)
         sub_layout.addLayout(left_layout)
         sub_layout.addWidget(self._parameters_input)

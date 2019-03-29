@@ -21,7 +21,8 @@ from .widgets import QPlot
 from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox
 from BetterQWidgets import BetterQPushButton as BetterButton
 
-_GROUPBOX_TITLE_STYLESHEET = "QGroupBox { font-weight: bold; font-family: UBuntu; font-size: 10pt}"
+_GROUPBOX_TITLE_STYLESHEET = "QGroupBox { font-weight: bold; font-family: Helvetica; font-size: " \
+                             "10pt}"
 _DEFAULT_FONT = QFont('Ubuntu', 10, weight=-1)
 _DOUBLESPINBOX_STYLESHEET = 'QDoubleSpinBox:disabled {color : rgb(210, 210, 210)}'
 _LABEL_STYLESHEET = 'QLabel:disabled {color : rgb(210, 210, 210)}'
@@ -31,32 +32,36 @@ class _DefaultQDoubleSpinBox(QW.QDoubleSpinBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFont(QFont('Ubuntu', 9, italic=True))
-        self.setFixedWidth(110)
+        self.setFont(QFont("Helvetica", 11))
+        self.setFixedWidth(90)
         self.setAlignment(Qt.AlignRight)
+        self.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
 
 
-class TemperatureQGroupBox(QW.QGroupBox):
-    valueChanged = pyqtSignal()
+class _DefaultQGroupBox(QW.QGroupBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setCheckable(True)
         self.setChecked(True)
-        self.setTitle('Temperature')
         self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
 
-        self._vib_input = QW.QDoubleSpinBox()
-        self._rot_cold_input = QW.QDoubleSpinBox()
-        self._rot_hot_input = QW.QDoubleSpinBox()
-        self._hot_ratio = QW.QDoubleSpinBox()
+
+class TemperatureQGroupBox(_DefaultQGroupBox):
+    valueChanged = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setTitle('Temperature')
+        self._vib_input = _DefaultQDoubleSpinBox()
+        self._rot_cold_input = _DefaultQDoubleSpinBox()
+        self._rot_hot_input = _DefaultQDoubleSpinBox()
+        self._hot_ratio = _DefaultQDoubleSpinBox()
         self._distribution_combobox = QW.QComboBox()
         self._labels = dict()
         self._set_labels()
-        self._set_vib()
-        self._set_rot()
+        self._set_spinbox()
         self._set_combobox()
-        self._set_hot_ratio()
         self._set_layout()
         self._set_format()
         self._set_slot()
@@ -114,43 +119,24 @@ class TemperatureQGroupBox(QW.QGroupBox):
     def _set_format(self):
         for key in ('Tvib', 'Trot_cold', 'Trot_hot', 'hot_ratio'):
             self._labels[key].setStyleSheet(_LABEL_STYLESHEET)
-        self._vib_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-        self._rot_cold_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-        self._rot_hot_input.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-        self._rot_hot_input.setAccelerated(True)
-        self._hot_ratio.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
 
-    def _set_vib(self):
-        self._vib_input.setFont(QFont('Ubuntu', 11))
-        self._vib_input.setAlignment(Qt.AlignRight)
-        self._vib_input.setRange(300, 10000)
-        self._vib_input.setSingleStep(10)
-        self._vib_input.setValue(3000)
-        self._vib_input.setSuffix(' K')
-        self._vib_input.setDecimals(0)
-
-    def _set_rot(self):
-        for _ in (self._rot_hot_input, self._rot_cold_input):
-            _.setFont(QFont('Ubuntu', 11))
-            _.setAlignment(Qt.AlignRight)
-            _.setRange(300, 20000)
-            _.setSingleStep(10)
-            _.setValue(3000)
-            _.setSuffix(' K')
-            _.setDecimals(0)
-        self._rot_hot_input.setSingleStep(50)
-
-    def _set_hot_ratio(self):
-        self._hot_ratio.setFont(QFont('Ubuntu', 11))
-        self._hot_ratio.setAlignment(Qt.AlignRight)
-        self._hot_ratio.setRange(0, 1)
-        self._hot_ratio.setSingleStep(0.05)
-        self._hot_ratio.setValue(0.5)
-        self._hot_ratio.setDecimals(2)
+    def _set_spinbox(self):
+        #               range[0] range[1] step value suffix decimals
+        setting_dict = [(300, 1e4, 10, 3000, ' K', 0),  # Tvib
+                        (300, 2e4, 10, 3000, ' K', 0),  # Trot_cold
+                        (300, 2e4, 50, 3000, ' K', 0),  # Trot_hot
+                        (0, 1, 0.05, 0.5, '', 2)]  # hot_ratio
+        for _, setting in zip((self._vib_input,
+                               self._rot_cold_input,
+                               self._rot_hot_input,
+                               self._hot_ratio), setting_dict):
+            _.setRange(setting[0], setting[1])
+            _.setSingleStep(setting[2])
+            _.setValue(setting[3])
+            _.setSuffix(setting[4])
+            _.setDecimals(setting[5])
 
     def _set_combobox(self):
-        self._distribution_combobox.setFont(_DEFAULT_FONT)
-        self._distribution_combobox.setCursor(Qt.PointingHandCursor)
         self._distribution_combobox.addItem('one_Trot')
         self._distribution_combobox.addItem('two_Trot')
 
@@ -181,15 +167,12 @@ class TemperatureQGroupBox(QW.QGroupBox):
         _combobox_callback()
 
 
-class FWHMQGroupBox(QW.QGroupBox):
+class FWHMQGroupBox(_DefaultQGroupBox):
     valueChanged = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setCheckable(True)
-        self.setChecked(True)
         self.setTitle('FHWM')
-        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
 
         self.line_shape_combobox = QW.QComboBox()
         self.fwhm_total = BetterQLabel()
@@ -202,6 +185,8 @@ class FWHMQGroupBox(QW.QGroupBox):
         self.line_shape_combobox.addItem('Lorentzian')
         self.line_shape_combobox.addItem('Voigt')
         self.line_shape_combobox.setCurrentText('Voigt')
+        self.line_shape_combobox.setSizeAdjustPolicy(
+            self.line_shape_combobox.AdjustToContentsOnFirstShow)
 
         self._set_format()
         self._set_layout()
@@ -251,15 +236,20 @@ class FWHMQGroupBox(QW.QGroupBox):
             _fwhm.setValue(0.02)
 
     def _set_layout(self):
+        _layout = QW.QVBoxLayout()
+        _layout.addWidget(self.fwhm_total, alignment=Qt.AlignRight)
+        _layout.addWidget(self.line_shape_combobox, alignment=Qt.AlignRight)
         layout = QW.QGridLayout()
-        layout.addWidget(self.fwhm_total, 0, 0, 1, 2, alignment=Qt.AlignRight)
-        layout.addWidget(self._label['Gauss'], 1, 0, alignment=Qt.AlignRight)
-        layout.addWidget(self.fwhm_g_part, 1, 1)
-        layout.addWidget(self._label['Loren'], 2, 0, alignment=Qt.AlignRight)
-        layout.addWidget(self.fwhm_l_part, 2, 1)
-        layout.addWidget(self.line_shape_combobox, 3, 1)
-        layout.setRowStretch(4, 1)
-        self.setLayout(layout)
+        # layout.addWidget(self.fwhm_total, 0, 0, 1, 2, alignment=Qt.AlignRight)
+        layout.addWidget(self._label['Gauss'], 0, 0, alignment=Qt.AlignRight)
+        layout.addWidget(self.fwhm_g_part, 0, 1)
+        layout.addWidget(self._label['Loren'], 1, 0, alignment=Qt.AlignRight)
+        layout.addWidget(self.fwhm_l_part, 1, 1)
+        _layout.addLayout(layout)
+        _layout.addStretch(1)
+        # layout.addWidget(self.line_shape_combobox, 3, 1)
+        # layout.setRowStretch(4, 1)
+        self.setLayout(_layout)
 
     def _set_slot(self):
         self.line_shape_combobox.currentTextChanged.connect(self.line_shape_combobox_callback)
@@ -297,17 +287,15 @@ class FWHMQGroupBox(QW.QGroupBox):
         elif self.para_form() == 'Voigt':
             _value = convolute_to_voigt(fwhm_G=self.value()['fwhm_g'],
                                         fwhm_L=self.value()['fwhm_l'])
-        self.fwhm_total.setText('{i:.5f} nm'.format(i=_value))
+        self.fwhm_total.setText('{i:.2f} pm'.format(i=_value * 1e3))
 
 
-class XOffsetQGroupBox(QW.QGroupBox):
+class XOffsetQGroupBox(_DefaultQGroupBox):
     valueChanged = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setTitle('x_offset')
-        self.setCheckable(True)
-        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
 
         self._combobox = QW.QComboBox()
         self._spinBoxes = dict()
@@ -422,14 +410,12 @@ class XOffsetQGroupBox(QW.QGroupBox):
         _combobox_callback()
 
 
-class YOffsetQGroupBox(QW.QGroupBox):
+class YOffsetQGroupBox(_DefaultQGroupBox):
     valueChanged = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setTitle('y_offset')
-        self.setCheckable(True)
-        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
 
         self.degree_combobox = QW.QComboBox()
         self._spinBoxes = dict()
@@ -526,13 +512,12 @@ class YOffsetQGroupBox(QW.QGroupBox):
         degree_combobox_callback()
 
 
-class GoodnessOfFit(QW.QGroupBox):
+class GoodnessOfFit(_DefaultQGroupBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._r2 = 0
         self.setTitle("Goodness of fit")
-        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
         self._set_labels()
         self._set_layout()
 
@@ -682,7 +667,7 @@ class ParaQWidget(QW.QWidget):
 
 
 class SpectraPlot(QPlot):
-    _LABEL_FONTDICT = {'family': 'Consolas', 'size': 14}
+    _LABEL_FONTDICT = {'family': 'Helvetica', 'size': 11}
     _TEXT_FONTDICT = {'family': 'Consolas', 'size': 11}
 
     def __init__(self, parent=None, width=12, height=5):
@@ -695,8 +680,8 @@ class SpectraPlot(QPlot):
         # set ticker
         locator = ticker.MaxNLocator(nbins=20)
         self.axes.xaxis.set_major_locator(locator)
-        self.axes.set_xlabel('wavelength [nm]', fontdict=self._LABEL_FONTDICT)
-        self.axes.set_ylabel('intensity [a.u.]', fontdict=self._LABEL_FONTDICT)
+        self.axes.set_xlabel('Wavelength [nm]', fontdict=self._LABEL_FONTDICT)
+        self.axes.set_ylabel('Intensity [a.u.]', fontdict=self._LABEL_FONTDICT)
         self.axes.set_xlim(250, 850)
         self.axes.set_ylim(-0.2, 1)
 
@@ -885,38 +870,39 @@ class SpectraFunc(CheckableQTreeWidget):
                          '1-0 412.4 nm',
                          '1-1 439.3 nm',
                          '1-2 469.7 nm'],
-             'N2(C-B)': ['0-0 337.0 nm',
-                         '1-1 333.8 nm',
-                         '2-2 330.9 nm',
-                         '0-1 357.6 nm',
-                         '1-2 353.6 nm',
-                         '2-3 349.9 nm',
-                         '3-4 346.8 nm',
-                         '1-0 315.8 nm',
-                         '2-1 313.5 nm',
-                         '3-2 311.5 nm',
-                         '0-2 380.4 nm',
-                         '1-3 375.4 nm',
-                         '2-4 370.9 nm']}
+             "N2(C-B) 315_nm dv=1 ": ['1-0 315.8 nm',
+                                      '2-1 313.5 nm',
+                                      '3-2 311.5 nm'],
+             'N2(C-B) 337_nm dv=0': ['0-0 337.0 nm',
+                                     '1-1 333.8 nm',
+                                     '2-2 330.9 nm'],
+             'N2(C-B) 357_nm dv=-1': ['0-1 357.6 nm',
+                                      '1-2 353.6 nm',
+                                      '2-3 349.9 nm',
+                                      '3-4 346.8 nm'],
+             "N2(C-B) 380_nm dv=-2": ['0-2 380.4 nm',
+                                      '1-3 375.4 nm',
+                                      '2-4 370.9 nm']}
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.spectra_func = None
+        self.setFixedWidth(220)
+        self.setFixedHeight(500)
         self._set_node_check('OH(A-X)')
         self.item_changed_callback()
 
     def item_changed_callback(self):
         spectra_list = self.get_select_state()
+        print(spectra_list)
 
         def get_spectra(_spectra):
             temp = re.fullmatch(r"([^()]+)\(([^()]+)\)_(\d+)-(\d+)", _spectra).groups()
             molecule, band, v_upper_str, v_lower_str = temp
-            if molecule == 'OH':
-                func = OHSpectra
-            if molecule == 'CO':
-                func = COSpectra
-            if molecule == 'N2':
-                func = N2Spectra
+            band_dict = dict(OH=OHSpectra,
+                             CO=COSpectra,
+                             N2=N2Spectra)
+            func = band_dict[molecule]
             return func(band=band, v_upper=int(v_upper_str), v_lower=int(v_lower_str))
 
         if len(spectra_list) == 1:
@@ -931,7 +917,8 @@ class SpectraFunc(CheckableQTreeWidget):
         for key in self._DICT:
             for _ in self.item_dict[key]:
                 if _.checkState(0) == Qt.Checked:
-                    selected_list.append('{spec}_{band}'.format(spec=key, band=_.text(0)[:3]))
+                    spec = re.match(r"([^()]+)\(([^()]+)\)", key).group()
+                    selected_list.append('{spec}_{band}'.format(spec=spec, band=_.text(0)[:3]))
         return selected_list
 
 
