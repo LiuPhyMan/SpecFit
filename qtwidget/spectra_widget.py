@@ -21,30 +21,51 @@ from .widgets import QPlot
 from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox
 from BetterQWidgets import BetterQPushButton as BetterButton
 
-_GROUPBOX_TITLE_STYLESHEET = "QGroupBox { font-weight: bold; font-family: Helvetica; font-size: " \
+_GROUPBOX_TITLE_STYLESHEET = "QGroupBox {font-weight: bold; font-family: Helvetica; font-size: " \
                              "10pt}"
-_DEFAULT_FONT = QFont('Ubuntu', 10, weight=-1)
 _DOUBLESPINBOX_STYLESHEET = 'QDoubleSpinBox:disabled {color : rgb(210, 210, 210)}'
 _LABEL_STYLESHEET = 'QLabel:disabled {color : rgb(210, 210, 210)}'
 
-
-class _DefaultQDoubleSpinBox(QW.QDoubleSpinBox):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFont(QFont("Helvetica", 11))
-        self.setFixedWidth(90)
-        self.setAlignment(Qt.AlignRight)
-        self.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
+_DEFAULT_FONT = QFont("Helvetica", 10)
+_DOUBLESPINBOX_FONT = QFont('Helvetica', 11)
+_LABEL_FONT = QFont("Helvetica", 12)
 
 
 class _DefaultQGroupBox(QW.QGroupBox):
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
         self.setCheckable(True)
         self.setChecked(True)
-        self.setStyleSheet(_GROUPBOX_TITLE_STYLESHEET)
+
+
+class _DefaultQDoubleSpinBox(QW.QDoubleSpinBox):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
+        self.setFont(_DOUBLESPINBOX_FONT)
+        self.setFixedWidth(85)
+        self.setAlignment(Qt.AlignRight)
+        self.setButtonSymbols(self.NoButtons)
+
+
+class _DefaultQLabel(QW.QLabel):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setStyleSheet(_LABEL_STYLESHEET)
+        self.setFont(_LABEL_FONT)
+        self.setAlignment(Qt.AlignRight)
+
+
+class _DefaultQComboBox(QW.QComboBox):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.setFont(_DEFAULT_FONT)
+        self.setCursor(Qt.PointingHandCursor)
 
 
 class TemperatureQGroupBox(_DefaultQGroupBox):
@@ -52,18 +73,17 @@ class TemperatureQGroupBox(_DefaultQGroupBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTitle('Temperature')
+        self.setTitle("TEMPERATURE")
         self._vib_input = _DefaultQDoubleSpinBox()
         self._rot_cold_input = _DefaultQDoubleSpinBox()
         self._rot_hot_input = _DefaultQDoubleSpinBox()
         self._hot_ratio = _DefaultQDoubleSpinBox()
-        self._distribution_combobox = QW.QComboBox()
+        self._distribution_combobox = _DefaultQComboBox()
         self._labels = dict()
         self._set_labels()
         self._set_spinbox()
         self._set_combobox()
         self._set_layout()
-        self._set_format()
         self._set_slot()
 
     def para_form(self):
@@ -98,27 +118,22 @@ class TemperatureQGroupBox(_DefaultQGroupBox):
             return [False for _ in self.state()]
 
     def _set_labels(self):
-        self._labels['Tvib'] = BetterQLabel('Tvib')
-        self._labels['Trot_cold'] = BetterQLabel('Trot_cold')
-        self._labels['Trot_hot'] = BetterQLabel('Trot_hot  ')
-        self._labels['hot_ratio'] = BetterQLabel('hot_ratio')
+        for _ in ("Tvib", "Trot_cold", "Trot_hot", "hot_ratio"):
+            self._labels[_] = _DefaultQLabel(_)
+        self._labels["Tvib"] = _DefaultQLabel("<b><i>T</i></b><sub>vib</sub>")
+        self._labels["Trot_cold"] = _DefaultQLabel("<b><i>T</i></b><sub>rot</sub>")
+        self._labels["Trot_hot"] = _DefaultQLabel("<b><i>T</b></i><sub>rot, hot</sub>")
+        self._labels["hot_ratio"] = _DefaultQLabel("<b><i>r</b></i><sub>hot</sub>")
 
     def _set_layout(self):
-        _layout = QW.QGridLayout()
-        _layout.addWidget(self._labels['Tvib'], 0, 0)
-        _layout.addWidget(self._vib_input, 0, 1)
-        _layout.addWidget(self._labels['Trot_cold'], 1, 0)
-        _layout.addWidget(self._rot_cold_input, 1, 1)
-        _layout.addWidget(self._labels['Trot_hot'], 2, 0)
-        _layout.addWidget(self._rot_hot_input, 2, 1)
-        _layout.addWidget(self._labels['hot_ratio'], 3, 0)
-        _layout.addWidget(self._hot_ratio, 3, 1)
-        _layout.addWidget(self._distribution_combobox, 4, 1)
+        _layout = QW.QFormLayout()
+        _layout.addRow(self._labels["Tvib"], self._vib_input)
+        _layout.addRow(self._labels["Trot_cold"], self._rot_cold_input)
+        _layout.addRow(self._labels["Trot_hot"], self._rot_hot_input)
+        _layout.addRow(self._labels["hot_ratio"], self._hot_ratio)
+        _layout.addRow("", self._distribution_combobox)
+        _layout.setLabelAlignment(Qt.AlignRight)
         self.setLayout(_layout)
-
-    def _set_format(self):
-        for key in ('Tvib', 'Trot_cold', 'Trot_hot', 'hot_ratio'):
-            self._labels[key].setStyleSheet(_LABEL_STYLESHEET)
 
     def _set_spinbox(self):
         #               range[0] range[1] step value suffix decimals
@@ -153,10 +168,6 @@ class TemperatureQGroupBox(_DefaultQGroupBox):
             self._rot_cold_input.setEnabled(self.state()[1])
             self._rot_hot_input.setEnabled(self.state()[2])
             self._hot_ratio.setEnabled(self.state()[3])
-            if self._distribution_combobox.currentText() == 'one_Trot':
-                self._labels['Trot_cold'].setText('Trot')
-            elif self._distribution_combobox.currentText() == 'two_Trot':
-                self._labels['Trot_cold'].setText('Trot_cold')
             slot_emit()
 
         self._vib_input.valueChanged.connect(slot_emit)
@@ -173,20 +184,16 @@ class FWHMQGroupBox(_DefaultQGroupBox):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setTitle('FHWM')
-
-        self.line_shape_combobox = QW.QComboBox()
-        self.fwhm_total = BetterQLabel()
+        self.line_shape_combobox = _DefaultQComboBox()
+        self.fwhm_total = _DefaultQLabel()
         self.fwhm_g_part = _DefaultQDoubleSpinBox()
         self.fwhm_l_part = _DefaultQDoubleSpinBox()
-        self._label = dict()
-        self._label['Gauss'] = BetterQLabel('Gauss')
-        self._label['Loren'] = BetterQLabel('Loren')
+        self._label = dict(Gauss=_DefaultQLabel("<b><i>w</b></i><sub>G</sub>"),
+                           Loren=_DefaultQLabel("<b><i>w</b></i><sub>L</sub>"))
         self.line_shape_combobox.addItem('Gaussian')
         self.line_shape_combobox.addItem('Lorentzian')
         self.line_shape_combobox.addItem('Voigt')
         self.line_shape_combobox.setCurrentText('Voigt')
-        self.line_shape_combobox.setSizeAdjustPolicy(
-            self.line_shape_combobox.AdjustToContentsOnFirstShow)
 
         self._set_format()
         self._set_layout()
@@ -197,8 +204,8 @@ class FWHMQGroupBox(_DefaultQGroupBox):
 
     def value(self):
         return dict(para_form=self.para_form(),
-                    fwhm_g=self.fwhm_g_part.value(),
-                    fwhm_l=self.fwhm_l_part.value())
+                    fwhm_g=self.fwhm_g_part.value() * 1e-3,
+                    fwhm_l=self.fwhm_l_part.value() * 1e-3)
 
     def state(self):
         if self.para_form() == 'Gaussian':
@@ -215,40 +222,28 @@ class FWHMQGroupBox(_DefaultQGroupBox):
             return [False for _ in self.state()]
 
     def set_value(self, *, fwhm_g, fwhm_l):
-        self.fwhm_g_part.setValue(fwhm_g)
-        self.fwhm_l_part.setValue(fwhm_l)
+        self.fwhm_g_part.setValue(fwhm_g * 1e3)
+        self.fwhm_l_part.setValue(fwhm_l * 1e3)
 
     def _set_format(self):
-        self.line_shape_combobox.setFont(_DEFAULT_FONT)
-        self.line_shape_combobox.setCursor(QCursor(Qt.PointingHandCursor))
-        self._label['Gauss'].setStyleSheet(_LABEL_STYLESHEET)
-        self._label['Loren'].setStyleSheet(_LABEL_STYLESHEET)
-        font = QFont('Ubuntu', 13)
+        font = QFont("Helvetica", 13)
         font.setUnderline(True)
         self.fwhm_total.setFont(font)
 
         for _fwhm in (self.fwhm_g_part, self.fwhm_l_part):
-            _fwhm.setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-            _fwhm.setRange(0, 1)
-            _fwhm.setDecimals(5)
-            _fwhm.setSingleStep(0.0005)
+            _fwhm.setSuffix(" pm")
+            _fwhm.setRange(0, 1e3)
+            _fwhm.setDecimals(2)
+            _fwhm.setSingleStep(0.5)
             _fwhm.setAccelerated(True)
-            _fwhm.setValue(0.02)
+            _fwhm.setValue(20)
 
     def _set_layout(self):
-        _layout = QW.QVBoxLayout()
-        _layout.addWidget(self.fwhm_total, alignment=Qt.AlignRight)
-        _layout.addWidget(self.line_shape_combobox, alignment=Qt.AlignRight)
-        layout = QW.QGridLayout()
-        # layout.addWidget(self.fwhm_total, 0, 0, 1, 2, alignment=Qt.AlignRight)
-        layout.addWidget(self._label['Gauss'], 0, 0, alignment=Qt.AlignRight)
-        layout.addWidget(self.fwhm_g_part, 0, 1)
-        layout.addWidget(self._label['Loren'], 1, 0, alignment=Qt.AlignRight)
-        layout.addWidget(self.fwhm_l_part, 1, 1)
-        _layout.addLayout(layout)
-        _layout.addStretch(1)
-        # layout.addWidget(self.line_shape_combobox, 3, 1)
-        # layout.setRowStretch(4, 1)
+        _layout = QW.QFormLayout()
+        _layout.addRow(self.fwhm_total)
+        _layout.addRow(self._label["Gauss"], self.fwhm_g_part)
+        _layout.addRow(self._label["Loren"], self.fwhm_l_part)
+        _layout.addRow("", self.line_shape_combobox)
         self.setLayout(_layout)
 
     def _set_slot(self):
@@ -267,16 +262,11 @@ class FWHMQGroupBox(_DefaultQGroupBox):
             self.fwhm_l_part.setEnabled(state)
             self._label['Loren'].setEnabled(state)
 
-        if self.para_form() == 'Gaussian':
-            set_fwhm_g_state(True)
-            set_fwhm_l_state(False)
-        if self.para_form() == 'Lorentzian':
-            set_fwhm_g_state(False)
-            set_fwhm_l_state(True)
-        if self.para_form() == 'Voigt':
-            set_fwhm_g_state(True)
-            set_fwhm_l_state(True)
-
+        _state_dict = dict(Gaussian=(True, False),
+                           Lorentzian=(False, True),
+                           Voigt=(True, True))
+        set_fwhm_g_state(_state_dict[self.para_form()][0])
+        set_fwhm_l_state(_state_dict[self.para_form()][1])
         self.valueChanged.emit()
 
     def set_fwhm_total(self):
@@ -287,7 +277,7 @@ class FWHMQGroupBox(_DefaultQGroupBox):
         elif self.para_form() == 'Voigt':
             _value = convolute_to_voigt(fwhm_G=self.value()['fwhm_g'],
                                         fwhm_L=self.value()['fwhm_l'])
-        self.fwhm_total.setText('{i:.2f} pm'.format(i=_value * 1e3))
+        self.fwhm_total.setText('<i><b>{i:.2f}</b><i> pm'.format(i=_value * 1e3))
 
 
 class XOffsetQGroupBox(_DefaultQGroupBox):
@@ -295,12 +285,13 @@ class XOffsetQGroupBox(_DefaultQGroupBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTitle('x_offset')
+        self.setTitle('X-OFFSET')
 
-        self._combobox = QW.QComboBox()
+        self._combobox = _DefaultQComboBox()
         self._spinBoxes = dict()
         self._label = dict()
         self._set_combobox()
+        self._set_labels()
         self._set_spinBoxes()
         self._set_layout()
         self._set_slot()
@@ -360,35 +351,34 @@ class XOffsetQGroupBox(_DefaultQGroupBox):
         if self._combobox.currentText() == 'linear'.upper():
             return lambda x: (x - kwargs['k0'] + kwargs['k1'] * x0) / (kwargs['k1'] + 1)
 
-    def _set_layout(self):
-        layout = QW.QVBoxLayout()
-        self.setLayout(layout)
-        sub_layout = QW.QFormLayout()
+    def _set_labels(self):
         for _str in ('x0', 'k0', 'k1', 'k2', 'k3'):
-            self._label[_str] = BetterQLabel(_str)
-            self._label[_str].setStyleSheet(_LABEL_STYLESHEET)
-            self._spinBoxes[_str].setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
-            sub_layout.addRow(self._label[_str], self._spinBoxes[_str])
-        layout.addLayout(sub_layout)
-        layout.addWidget(self._combobox)
-        layout.addStretch(1)
+            self._label[_str] = _DefaultQLabel("<b><i>" + _str[:-1] + "</i></b>" +
+                                               "<sub>" + _str[-1] + "</sub>")
+
+    def _set_layout(self):
+        _layout = QW.QFormLayout()
+        for _str in ('x0', 'k0', 'k1', 'k2', 'k3'):
+            _layout.addRow(self._label[_str], self._spinBoxes[_str])
+        _layout.addRow("", self._combobox)
+        self.setLayout(_layout)
 
     def _set_spinBoxes(self):
+        _font = QFont("Helvetica", 9, italic=True)
         for key in ('x0', 'k0', 'k1', 'k2', 'k3'):
             self._spinBoxes[key] = _DefaultQDoubleSpinBox()
             self._spinBoxes[key].setRange(-np.inf, np.inf)
             self._spinBoxes[key].setSingleStep(0.002)
-            self._spinBoxes[key].setDecimals(9)
+            self._spinBoxes[key].setDecimals(7)
             self._spinBoxes[key].setValue(0)
             self._spinBoxes[key].setAccelerated(True)
+            self._spinBoxes[key].setFont(_font)
         self._spinBoxes['x0'].setSingleStep(1)
         self._spinBoxes['x0'].setDecimals(0)
         self._spinBoxes['x0'].setValue(300)
         self._spinBoxes['k1'].setValue(-0.067)
 
     def _set_combobox(self):
-        self._combobox.setFont(_DEFAULT_FONT)
-        self._combobox.setCursor(Qt.PointingHandCursor)
         for key in ['constant', 'linear', 'parabolic', 'cubic']:
             self._combobox.addItem(key.upper())
         self._combobox.setCurrentIndex(1)
@@ -415,14 +405,15 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setTitle('y_offset')
-
-        self.degree_combobox = QW.QComboBox()
+        self.setTitle('Y_OFFSET')
+        self.degree_combobox = _DefaultQComboBox()
         self._spinBoxes = dict()
-        self._label = dict(x0=BetterQLabel('x0'),
-                           k0=BetterQLabel('k0'), c0=BetterQLabel('c0'),
-                           I0=BetterQLabel('I0'))
+        self._label = dict(x0=_DefaultQLabel('x0'),
+                           k0=_DefaultQLabel('k0'),
+                           c0=_DefaultQLabel('c0'),
+                           I0=_DefaultQLabel('I0'))
         self._set_combobox()
+        self._set_labels()
         self._set_spinBoxes()
         self._set_layout()
         self._set_slot()
@@ -460,18 +451,20 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
         x0, k0, c0, I0 = kwargs['x0'], kwargs['k0'], kwargs['c0'], kwargs['I0']
         return lambda x, y: k0 * (x - x0) + c0 + I0 * y
 
-    def _set_layout(self):
-        layout = QW.QVBoxLayout()
-        self.setLayout(layout)
-        sub_layout = QW.QFormLayout()
+    def _set_labels(self):
         for _str in ('x0', 'k0', 'c0', 'I0'):
-            sub_layout.addRow(self._label[_str], self._spinBoxes[_str])
-            self._label[_str].setStyleSheet(_LABEL_STYLESHEET)
-        layout.addLayout(sub_layout)
-        layout.addWidget(self.degree_combobox)
-        layout.addStretch(1)
+            self._label[_str] = _DefaultQLabel("<b><i>" + _str[:-1] + "</i></b>" +
+                                               '<sub>' + _str[-1] + '</sub>')
+
+    def _set_layout(self):
+        _layout = QW.QFormLayout()
+        for _str in ('x0', 'k0', 'c0', 'I0'):
+            _layout.addRow(self._label[_str], self._spinBoxes[_str])
+        _layout.addRow("", self.degree_combobox)
+        self.setLayout(_layout)
 
     def _set_spinBoxes(self):
+        _font = QFont("Helvetica", 9, italic=True)
         for key in ('x0', 'k0', 'c0', 'I0'):
             self._spinBoxes[key] = _DefaultQDoubleSpinBox()
             self._spinBoxes[key].setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
@@ -479,14 +472,14 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
             self._spinBoxes[key].setSingleStep(.01)
             self._spinBoxes[key].setDecimals(4)
             self._spinBoxes[key].setValue(0)
+            self._spinBoxes[key].setFont(_font)
+        self._spinBoxes['x0'].setDecimals(0)
         self._spinBoxes['k0'].setSingleStep(.002)
         self._spinBoxes['x0'].setValue(400)
         self._spinBoxes['x0'].setSingleStep(1)
         self._spinBoxes['I0'].setValue(1)
 
     def _set_combobox(self):
-        self.degree_combobox.setFont(_DEFAULT_FONT)
-        self.degree_combobox.setCursor(Qt.PointingHandCursor)
         for key in ['even', 'incline']:
             self.degree_combobox.addItem(key.upper())
 
@@ -516,6 +509,7 @@ class GoodnessOfFit(_DefaultQGroupBox):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setCheckable(False)
         self._r2 = 0
         self.setTitle("Goodness of fit")
         self._set_labels()
@@ -523,8 +517,9 @@ class GoodnessOfFit(_DefaultQGroupBox):
 
     def _set_layout(self):
         layout = QW.QFormLayout()
-        layout.addRow(BetterQLabel('R2'), self._label_r2),
-        layout.addRow(BetterQLabel('ChiSquared'), self._label_chisq)
+        layout.addRow(_DefaultQLabel("<b>R</b><sup>2</sup>"), self._label_r2),
+        layout.addRow(_DefaultQLabel("Chi-squared"), self._label_chisq)
+        layout.setLabelAlignment(Qt.AlignRight)
         self.setLayout(layout)
 
     def r2(self, *, p_data, o_data):
@@ -974,7 +969,8 @@ class SizeInput(QW.QDialog):
 
     def __init__(self, init_width, init_height, parent=None):
         super().__init__(parent)
-        self._width_spinbox = BetterQDoubleSpinBox()
+        # self._width_spinbox = BetterQDoubleSpinBox()
+        self._width_spinbox = _DefaultQDoubleSpinBox()
         self._height_spinbox = BetterQDoubleSpinBox()
         self._width_spinbox.setValue(init_width)
         self._height_spinbox.setValue(init_height)
@@ -986,8 +982,8 @@ class SizeInput(QW.QDialog):
 
     def _set_layout(self):
         _layout = QW.QFormLayout()
-        _layout.addRow(BetterQLabel('Width'), self._width_spinbox)
-        _layout.addRow(BetterQLabel('Height'), self._height_spinbox)
+        _layout.addRow(_DefaultQLabel("Width"), self._width_spinbox)
+        _layout.addRow(_DefaultQLabel("Height"), self._height_spinbox)
         self.setLayout(_layout)
 
     def _set_slot(self):
@@ -1024,15 +1020,14 @@ class FitArgsInput(QW.QDialog):
         self._xtol_spinbox.valueChanged.connect(lambda: self.valueChanged.emit())
 
 
-class RangeQWidget(QW.QWidget):
+class RangeQWidget(_DefaultQGroupBox):
     valueChanged = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.min_spinBox = BetterQDoubleSpinBox()
-        self.max_spinBox = BetterQDoubleSpinBox()
-        self.min_spinBox.setFixedWidth(120)
-        self.max_spinBox.setFixedWidth(120)
+        self.setTitle("Range")
+        self.min_spinBox = _DefaultQDoubleSpinBox()
+        self.max_spinBox = _DefaultQDoubleSpinBox()
 
         self._set_layout()
         self._set_init_state()
@@ -1040,8 +1035,8 @@ class RangeQWidget(QW.QWidget):
 
     def _set_layout(self):
         sub_layout = QW.QFormLayout()
-        sub_layout.addRow(BetterQLabel('From'), self.min_spinBox)
-        sub_layout.addRow(BetterQLabel('To'), self.max_spinBox)
+        sub_layout.addRow(_DefaultQLabel('From'), self.min_spinBox)
+        sub_layout.addRow(_DefaultQLabel('To'), self.max_spinBox)
         layout = QW.QVBoxLayout()
         layout.addLayout(sub_layout)
         layout.addStretch(1)
@@ -1052,9 +1047,7 @@ class RangeQWidget(QW.QWidget):
             _box.setRange(200, 900)
             _box.setDecimals(1)
             _box.setSingleStep(0.1)
-            _box.setFont(QFont('Ubuntu', 13))
             _box.setSuffix(' nm')
-            _box.setAlignment(Qt.AlignRight)
             _box.setAccelerated(True)
         self.min_spinBox.setValue(200)
         self.max_spinBox.setValue(850)
