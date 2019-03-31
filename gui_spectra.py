@@ -597,3 +597,4 @@ if __name__ == "__main__":
     window.show()
     # app.exec_()
     app.aboutToQuit.connect(app.deleteLater)
+    # add self_branch tag
