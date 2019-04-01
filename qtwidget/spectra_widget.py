@@ -467,9 +467,8 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
         _font = QFont("Helvetica", 9, italic=True)
         for key in ('x0', 'k0', 'c0', 'I0'):
             self._spinBoxes[key] = _DefaultQDoubleSpinBox()
-            self._spinBoxes[key].setStyleSheet(_DOUBLESPINBOX_STYLESHEET)
             self._spinBoxes[key].setRange(-np.inf, np.inf)
-            self._spinBoxes[key].setSingleStep(.01)
+            self._spinBoxes[key].setSingleStep(.005)
             self._spinBoxes[key].setDecimals(4)
             self._spinBoxes[key].setValue(0)
             self._spinBoxes[key].setFont(_font)
@@ -680,7 +679,7 @@ class SpectraPlot(QPlot):
         self.axes.set_xlim(250, 850)
         self.axes.set_ylim(-0.2, 1)
 
-        self.axes.grid()
+        self.axes.grid(linestyle=':')
         self.sim_line, = self.axes.plot([], [], 'r-', linewidth=.8)
         # self.exp_line, = self.axes.plot([], [], 'bo-', linewidth=.5, markersize=.5)
         self.exp_lines = []
@@ -850,12 +849,12 @@ class CheckableQTreeWidget(QW.QTreeWidget):
 
 
 class SpectraFunc(CheckableQTreeWidget):
-    _DICT = {'OH(A-X)': ['0-0 308.9 nm',
-                         '1-1 314.5 nm',
-                         '2-2 320.7 nm',
-                         '1-0 282.8 nm',
-                         '2-1 289.1 nm',
-                         '3-2 296.1 nm'],
+    _DICT = {'OH(A-X) 309_nm dv=0': ['0-0 308.9 nm',
+                                     '1-1 314.5 nm',
+                                     '2-2 320.7 nm'],
+             'OH(A-X) 283_nm dv=1': ['1-0 282.8 nm',
+                                     '2-1 289.1 nm',
+                                     '3-2 296.1 nm'],
              'CO(B-A)': ['0-0 451.1 nm',
                          '0-1 483.5 nm',
                          '0-2 519.8 nm',
@@ -865,13 +864,13 @@ class SpectraFunc(CheckableQTreeWidget):
                          '1-0 412.4 nm',
                          '1-1 439.3 nm',
                          '1-2 469.7 nm'],
-             "N2(C-B) 315_nm dv=1 ": ['1-0 315.8 nm',
+             "N2(C-B) 316_nm dv=1 ": ['1-0 315.8 nm',
                                       '2-1 313.5 nm',
                                       '3-2 311.5 nm'],
              'N2(C-B) 337_nm dv=0': ['0-0 337.0 nm',
                                      '1-1 333.8 nm',
                                      '2-2 330.9 nm'],
-             'N2(C-B) 357_nm dv=-1': ['0-1 357.6 nm',
+             'N2(C-B) 358_nm dv=-1': ['0-1 357.6 nm',
                                       '1-2 353.6 nm',
                                       '2-3 349.9 nm',
                                       '3-4 346.8 nm'],
@@ -884,7 +883,7 @@ class SpectraFunc(CheckableQTreeWidget):
         self.spectra_func = None
         self.setFixedWidth(220)
         self.setFixedHeight(500)
-        self._set_node_check('OH(A-X)')
+        self._set_node_check('OH(A-X) 309_nm dv=0')
         self.item_changed_callback()
 
     def item_changed_callback(self):
@@ -1056,8 +1055,13 @@ class RangeQWidget(_DefaultQGroupBox):
         return np.array([self.min_spinBox.value(), self.max_spinBox.value()], dtype=np.float)
 
     def set_value(self, *, _min, _max):
-        self.min_spinBox.setValue(_min)
-        self.max_spinBox.setValue(_max)
+        if self.isChecked():
+            self.min_spinBox.setMaximum(_max)
+            self.max_spinBox.setMinimum(_min)
+            self.min_spinBox.setValue(_min)
+            self.max_spinBox.setValue(_max)
+        else:
+            return None
 
     def _set_slot(self):
         def slot_emit():

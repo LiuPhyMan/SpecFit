@@ -46,7 +46,7 @@ class GUISpectra(QW.QMainWindow):
         self.cenWidget = QW.QWidget()
         self.setWindowTitle('Spectra sim v1.0')
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        self.setWindowIcon(QIcon(dir_path + r'\gui_materials/matplotlib_large.png'))
+        self.setWindowIcon(QIcon(dir_path + r'\gui_materials/icon.png'))
         self.setCentralWidget(self.cenWidget)
 
         init_width, init_height = 12, 5
@@ -65,8 +65,9 @@ class GUISpectra(QW.QMainWindow):
         self._normalized_groupbox = NormalizedQGroupBox()
         self._exp_data = dict(wavelength=None, intensity=None)
         self._output = QW.QTextEdit()
-        self._output.setFont(QFont("Consolas", 11))
+        self._output.setFont(QFont("Times New Roman", 13))
         self._output.setFixedWidth(300)
+        self._output.setFixedHeight(500)
         self._set_button_layout()
         self._set_layout()
         self._set_menubar()
@@ -144,11 +145,12 @@ class GUISpectra(QW.QMainWindow):
         sub_layout = QW.QHBoxLayout()
         left_layout = QW.QVBoxLayout()
         left_layout.addWidget(self._wavelength_range)
+        left_layout.addWidget(self._normalized_groupbox)
         # left_layout.addWidget(self._spectra_tree)
         left_layout.addStretch(1)
         sub_layout.addLayout(left_layout)
         sub_layout.addWidget(self._parameters_input)
-        sub_layout.addWidget(self._normalized_groupbox)
+        # sub_layout.addWidget(self._normalized_groupbox)
         sub_layout.addLayout(self.button_layout)
         sub_layout.addWidget(self._goodness_of_fit)
         sub_layout.addStretch(1)
@@ -192,6 +194,7 @@ class GUISpectra(QW.QMainWindow):
             self._exp_data['wavelength'] = xdata
             self._exp_data['intensity'] = ydata
             self._spectra_plot.auto_scale()
+            self._wavelength_range.set_value(_min=xdata.min(), _max=xdata.max())
 
         def _parameters_input_callback():
             if self._exp_data['wavelength'] is not None:
@@ -422,7 +425,10 @@ class GUISpectra(QW.QMainWindow):
         #   Show the goodness of fit.
         self._goodness_of_fit.set_value(p_data=self._sim_result.best_fit,
                                         o_data=self._sim_result.data)
-        self._output.setText(self.simulated_result_str())
+        self._output.setHtml(self.simulated_result_str())
+        # self._output.setTextFormat(Qt.RichText)
+        # self._output.setWordWrap(True)
+        # self._output.setPlainText()
         #   Show report.
         self.show_report()
 
@@ -508,30 +514,36 @@ class GUISpectra(QW.QMainWindow):
             else:
                 return '\n{v:{frmt}} [fixed]'.format(value=param.value, frmt=_format)
 
-        _str = r"""Simulation is {a}
-        Method              : {b}
-        ndata points        : {c}
-        variables           : {d}
-        function evals      : {e}
-        reduced chi_square  : {f:.2e}
-        R2                  : {g:.4f}
-        Tvib
-        Trot_cold
-        fwhm_g
-        fwhm_l
+        _str = r"""<p>Simulation is <b><i>{a}</i></b>!</p>
+        <p>Method              : {b}</p>
+        <p>ndata points        : {c}</p>
+        <p>variables           : {d}</p>
+        <p>function evals      : {e}</p>
+        <p><b>Reduced chi_squared</b>  : {f:.2e}</p>
+        <p><big><b>R</b><sup>2</sup></big> : {g:.4f}</p>
+        <p> <b><big><i>T</i><sub>vib</sub></b></big> : {Tvib} K<br>
+        <b><big><i>T</i><sub>rot</sub></b></big> : {Trot_cold} K<br> </p>
+        <p>
+        <b><i>w</i><sub>G</sub></b> : {fwhm_g} <br>
+        <b><i>w</i><sub>L</sub></b> : {fwhm_l} 
+        </p>
+        <p>
+        <b>f<sub>tol</sub></b> : {ftol} <br>
+        <b>x<sub>tol</sub></b> : {xtol} <br>
+        </p
         """.format(a="Success" if self._sim_result.success else "Failed",
                    b=self._sim_result.method,
                    c=self._sim_result.ndata,
                    d=self._sim_result.nvarys,
                    e=self._sim_result.nfev,
                    f=self._sim_result.redchi,
-                   g=self._goodness_of_fit._r2)
-        _str += get_print_str(self._sim_result.params['Tvib'], '<8.2f')
-        _str += get_print_str(self._sim_result.params['Trot_cold'], '<8.2f')
-        _str += get_print_str(self._sim_result.params['fwhm_g'], '<8.3f')
-        _str += get_print_str(self._sim_result.params['fwhm_l'], '<8.3f')
-        _str += "\nftol : {f:<8.2e}".format(f=self._fit_kws_input.value()['ftol'])
-        _str += "\nxtol : {f:<8.2e}".format(f=self._fit_kws_input.value()['xtol'])
+                   g=self._goodness_of_fit._r2,
+                   Tvib=get_print_str(self._sim_result.params['Tvib'], '<8.2f'),
+                   Trot_cold=get_print_str(self._sim_result.params['Trot_cold'], '<8.2f'),
+                   fwhm_g=get_print_str(self._sim_result.params['fwhm_g'], '<8.3f'),
+                   fwhm_l=get_print_str(self._sim_result.params['fwhm_l'], '<8.3f'),
+                   ftol=self._fit_kws_input.value()['ftol'],
+                   xtol=self._fit_kws_input.value()['xtol'])
         _str = re.sub(r"^\s+", r"\n", _str)
         _str = re.sub(r"\n\s+", r"\n", _str)
         return _str
@@ -571,7 +583,7 @@ class Temp(QW.QMainWindow):
 
         super().__init__(parent)
         self.resize(800, 600)
-        self.showMaximized()
+        # self.showMaximized()
         # self.showMinimized()
         # avGeom = QW.QDesktopWidget().availableGeometry()
         # self.setGeometry(avGeom)
@@ -579,9 +591,15 @@ class Temp(QW.QMainWindow):
         self.setWindowTitle('Spectra sim v1.0')
         self.setWindowIcon(QIcon('gui_materials/matplotlib_large.png'))
         self.setCentralWidget(self.cenWidget)
-        exp_line = ExpLinesQTreeWidget()
+        # exp_line = ExpLinesQTreeWidget()
+        # temp_widgets = QW.QLabel()
+        temp_widgets = QW.QTextEdit()
+        # temp_widgets.setTextFormat(Qt.RichText)
+        temp_widgets.setFont(_DEFAULT_TOOLBAR_FONT)
+        temp_widgets.setHtml('abcd<br>cd')
+        # temp_widgets.setWordWrap(True)
         _layout = QW.QVBoxLayout()
-        _layout.addWidget(exp_line)
+        _layout.addWidget(temp_widgets)
         self.cenWidget.setLayout(_layout)
 
 
@@ -597,4 +615,3 @@ if __name__ == "__main__":
     window.show()
     # app.exec_()
     app.aboutToQuit.connect(app.deleteLater)
-    # add self_branch tag
