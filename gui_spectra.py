@@ -42,12 +42,13 @@ class GUISpectra(QW.QMainWindow):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.showMaximized()
+        # self.showMaximized()
         self.cenWidget = QW.QWidget()
         self.setWindowTitle('Spectra sim v1.0')
         dir_path = os.path.dirname(os.path.realpath(__file__))
         self.setWindowIcon(QIcon(dir_path + r'\gui_materials/icon.png'))
         self.setCentralWidget(self.cenWidget)
+        self.move(20, 20)
 
         init_width, init_height = 12, 5
         self._spectra_plot = SpectraPlot(self.cenWidget, width=init_width, height=init_height)
@@ -76,7 +77,8 @@ class GUISpectra(QW.QMainWindow):
         self._set_connect()
 
     def _set_dockwidget(self):
-        _default_features = QW.QDockWidget.DockWidgetClosable | QW.QDockWidget.DockWidgetFloatable
+        # _default_features = QW.QDockWidget.DockWidgetClosable | QW.QDockWidget.DockWidgetFloatable
+        _default_features = QW.QDockWidget.AllDockWidgetFeatures
         _list = ['Branch', 'Resize', "Fit_Args", "Output", "Bands"]
         _widgets_to_dock = [self._branch_tree,
                             self._resize_input,
@@ -95,7 +97,9 @@ class GUISpectra(QW.QMainWindow):
             _action.setChecked(False)
             _action.setFont(_DEFAULT_TOOLBAR_FONT)
             _action.setText(_)
+            # self.addDockWidget(Qt.RightDockWidgetArea, _widget)
             self.toolbar.addAction(_action)
+        # self.addDockWidget(Qt.RightDockWidgetArea, self._output)
 
     def _set_menubar(self):
         menubar = self.menuBar()
@@ -112,49 +116,45 @@ class GUISpectra(QW.QMainWindow):
         report_action.triggered.connect(self.show_report)
         self.toolbar.addSeparator()
 
-    @staticmethod
-    def _get_pushbutton(text, *, height=None):
-        _ = BetterQPushButton(text)
-        if height:
-            _.setFixedHeight(height)
-        return _
-
     def _set_button_layout(self):
+        def _get_pushbutton(text):
+            _ = BetterQPushButton(text)
+            _.setFixedHeight(40)
+            return _
+
         self.button_layout = QW.QVBoxLayout()
         sub_layout = QW.QGridLayout()
         self._plot_buttons = dict()
-        self._plot_buttons['clear_sim'] = self._get_pushbutton("ClearSim", height=30)
-        self._plot_buttons['clear_exp'] = self._get_pushbutton('ClearExp', height=30)
-        self._plot_buttons['add_sim'] = self._get_pushbutton("AddSim", height=30)
-        self._plot_buttons['auto_scale'] = self._get_pushbutton("&AutoScale", height=30)
-        self._plot_buttons['fit'] = self._get_pushbutton('&Fit', height=60)
-        self._plot_buttons['FitDistrbtn'] = self._get_pushbutton('FitDistrbtn', height=30)
+        self._plot_buttons['clear_sim'] = _get_pushbutton("ClearSim")
+        self._plot_buttons['clear_exp'] = _get_pushbutton('ClearExp')
+        self._plot_buttons['add_sim'] = _get_pushbutton("AddSim")
+        self._plot_buttons['auto_scale'] = _get_pushbutton("&AutoScale")
+        self._plot_buttons['fit'] = _get_pushbutton('&Fit')
+        self._plot_buttons['FitDistrbtn'] = _get_pushbutton('FitDistrbtn')
         sub_layout.addWidget(self._plot_buttons['auto_scale'], 0, 0)
-        sub_layout.addWidget(self._plot_buttons['fit'], 1, 0)
-        sub_layout.addWidget(self._plot_buttons['clear_sim'], 2, 0)
-        sub_layout.addWidget(self._plot_buttons['clear_exp'], 3, 0)
-        sub_layout.addWidget(self._plot_buttons['FitDistrbtn'], 4, 0)
+        sub_layout.addWidget(self._plot_buttons['clear_sim'], 1, 0)
+        sub_layout.addWidget(self._plot_buttons['clear_exp'], 2, 0)
+        sub_layout.addWidget(self._plot_buttons['fit'], 0, 1)
+        sub_layout.addWidget(self._plot_buttons['FitDistrbtn'], 1, 1)
         self.button_layout.addLayout(sub_layout)
         self.button_layout.addStretch(1)
 
     def _set_layout(self):
         _layout = QW.QVBoxLayout()
         _layout.addWidget(self._spectra_plot)
-        _layout.addWidget(self._file_read)
 
         sub_layout = QW.QHBoxLayout()
         left_layout = QW.QVBoxLayout()
         left_layout.addWidget(self._wavelength_range)
         left_layout.addWidget(self._normalized_groupbox)
-        # left_layout.addWidget(self._spectra_tree)
         left_layout.addStretch(1)
         sub_layout.addLayout(left_layout)
         sub_layout.addWidget(self._parameters_input)
-        # sub_layout.addWidget(self._normalized_groupbox)
         sub_layout.addLayout(self.button_layout)
         sub_layout.addWidget(self._goodness_of_fit)
         sub_layout.addStretch(1)
         _layout.addLayout(sub_layout)
+        _layout.addWidget(self._file_read)
         _layout.addStretch(1)
         self.cenWidget.setLayout(_layout)
 

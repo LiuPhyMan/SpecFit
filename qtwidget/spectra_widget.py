@@ -576,7 +576,7 @@ class NormalizedQGroupBox(QW.QGroupBox):
         self.setLayout(layout)
 
 
-class ParaQWidget(QW.QWidget):
+class ParaQWidget(QW.QFrame):
     valueChanged = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -585,6 +585,8 @@ class ParaQWidget(QW.QWidget):
         self._fwhm = FWHMQGroupBox()
         self._x_offset = XOffsetQGroupBox()
         self._y_offset = YOffsetQGroupBox()
+        self.setFrameStyle(self.Box | self.Plain)
+        self.setLineWidth(1)
         self._set_layout()
         self._set_slot()
 
@@ -667,7 +669,7 @@ class SpectraPlot(QPlot):
     def __init__(self, parent=None, width=12, height=5):
         super().__init__(parent, figsize=(width, height), dpi=100,
                          toolbar_position='left')
-        self.toolbar.setIconSize(QSize(24, 24))
+        self.toolbar.setIconSize(QSize(16, 16))
         self.axes = self.figure.add_subplot(111)
         # self.axes.xaxis.set_major_locator(ticker.MultipleLocator(5.00))
         # self.axes.xaxis.set_minor_locator(ticker.MultipleLocator(1.00))
@@ -769,7 +771,7 @@ class ReadFileQWidget(QW.QWidget):
         super().__init__(parent)
         self._entry = QW.QLineEdit()
         self._entry.setFont(_DEFAULT_FONT)
-        self._entry.setFixedWidth(1000)
+        self._entry.setFixedWidth(600)
         self._browse_button = BetterButton('Browse')
         self._browse_button.clicked.connect(self._get_open_file_name)
         self._set_layout()
