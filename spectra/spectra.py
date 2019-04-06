@@ -249,6 +249,9 @@ class MoleculeSpectra(Spectra):
         self.Ge_upper = None
         self.Fev_upper = None
 
+    def set_state_distribution(self):
+        pass
+
     def set_maxwell_distribution(self, *, Tvib, Trot):
         r"""
         Set the distribution to a maxwell one.
@@ -404,7 +407,7 @@ class OHSpectra(MoleculeSpectra):
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
 
-    def set_distribution(self, *, F1_distri, F2_distri):
+    def set_state_distribution(self, *, F1_distri, F2_distri):
         assert F1_distri.size == 42
         assert F2_distri.size == 42
         self.distribution = np.zeros((40, 12))
@@ -420,6 +423,9 @@ class OHSpectra(MoleculeSpectra):
         self.distribution[:, 9] = F2_distri[2:42]  # R21
         self.distribution[:, 10] = F2_distri[1:41]  # Q21
         self.distribution[:-1, 11] = F2_distri[3:]  # S21
+
+    def set_distribution(self, _distribution):
+        self.distribution = _distribution
 
     def get_level_params(self, params):
         F1_part = np.hstack((params[:, 0],

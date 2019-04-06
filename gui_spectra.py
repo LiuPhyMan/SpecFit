@@ -22,6 +22,7 @@ from PyQt5.QtGui import QIcon, QFont, QCursor
 from PyQt5.QtCore import Qt, pyqtSignal
 from BetterQWidgets import BetterQPushButton
 from BasicFunc import tracer
+from BasicFunc import constants as const
 from qtwidget import (SpectraPlot,
                       RangeQWidget,
                       ReadFileQWidget,
@@ -458,11 +459,12 @@ class GUISpectra(QW.QMainWindow):
         def fit_func(x, *_distribution):
             #   Now only support OH(A-X, 0-0) band.
             _distri_array = np.array(_distribution)
-            _spc_func.set_distribution(F1_distri=_distri_array[:42],
-                                       F2_distri=_distri_array[42:])
+            _spc_func.set_state_distribution(F1_distri=_distri_array[:42],
+                                             F2_distri=_distri_array[42:])
             _spc_func.set_intensity()
             _, in_sim = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
-                                                          wavelength_range=wave_range_corrected,
+                                                          # wavelength_range=wave_range_corrected,
+                                                          wavelength_range=None,
                                                           slit_func=slit_func_name,
                                                           fwhm=dict(Gaussian=fwhm_g,
                                                                     Lorentzian=fwhm_l),
@@ -474,7 +476,7 @@ class GUISpectra(QW.QMainWindow):
         plt.figure()
         plt.plot(wv_exp_in_range, intens_exp_in_range)
         _temp_in_sim = fit_func(wv_exp_in_range, *distribution_guess)
-        plt.plot(wv_exp_in_range, _temp_in_sim)
+        plt.plot(wv_exp_in_range, _temp_in_sim, label='guess')
         # --------------------------------------------------------------------------------------- #
 
         distribution_fitted, pcov = curve_fit(fit_func,
@@ -489,11 +491,18 @@ class GUISpectra(QW.QMainWindow):
         # plt.figure()
         # plt.plot(wv_exp_in_range, intens_exp_in_range)
         _temp_in_sim = fit_func(wv_exp_in_range, *distribution_fitted)
-        plt.plot(wv_exp_in_range, _temp_in_sim, marker='.')
+        plt.plot(wv_exp_in_range, _temp_in_sim, marker='.', label='fitted')
+        plt.legend()
         # --------------------------------------------------------------------------------------- #
         plt.figure()
-        plt.semilogy(Fev_upper[:25], (distribution_guess[:42] / gJ_upper)[:25])
-        plt.semilogy(Fev_upper[:25], (distribution_fitted[:42] / gJ_upper)[:25])
+        plt.semilogy(Fev_upper[:25]*const.WNcm2eV, (distribution_guess[:42] / gJ_upper)[:25],
+                     marker='o', label='guess')
+        plt.semilogy(Fev_upper[:25]*const.WNcm2eV, (distribution_fitted[:42] / gJ_upper)[:25],
+                     marker='o', label='F1_dis')
+        plt.semilogy(Fev_upper[:25]*const.WNcm2eV, (distribution_fitted[42:] / gJ_upper)[:25],
+                     marker='o', label='F2_dis')
+        plt.legend()
+        plt.xlabel("Energy (eV)")
         # plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')
         print(distribution_fitted)
 
