@@ -250,7 +250,7 @@ class GUISpectra(QW.QMainWindow):
         return wave_exp_in_range, intens_exp_in_range
 
     # ------------------------------------------------------------------------------------------- #
-    def _evolve_spectra(self, _spc_func, wv_range, slit_func_name,
+    def _evolve_spectra(self, _spc_func, slit_func_name,
                         x, Tvib, Trot_cold, Trot_hot,
                         hot_ratio, fwhm_g, fwhm_l,
                         x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
@@ -285,12 +285,10 @@ class GUISpectra(QW.QMainWindow):
         self.x_correct_func_reversed = self._parameters_input._x_offset.correct_func_reversed(
             **x_correct_kwargs)
         #   Calculate the absolute wavelength position to evolve the intensity and its range.
-        wave_range_corrected = self.x_correct_func(wv_range)
         wavelength_corrected = self.x_correct_func(x)
         # --------------------------------------------------------------------------------------- #
         #   4. Evolve the spectra on the corrected wavelenth.
         _, intens = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
-                                                      wavelength_range=wave_range_corrected,
                                                       slit_func=slit_func_name,
                                                       fwhm={'Gaussian': fwhm_g,
                                                             'Lorentzian': fwhm_l},
@@ -306,10 +304,9 @@ class GUISpectra(QW.QMainWindow):
         Get the synthetic spectra based on the parameters on the panel.
         """
         spc_func = self._spectra_tree.spectra_func
-        wv_range = self._wavelength_range.value()
         slit_func = self._parameters_input._fwhm.para_form()
-        intensity_simulated = self._evolve_spectra(spc_func, wv_range, slit_func,
-                                                   self._exp_data['wavelength'],
+        intensity_simulated = self._evolve_spectra(spc_func, slit_func,
+                                                   self.wave_intens_exp_in_range()[0],
                                                    *self._parameters_input.value())
         wave_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
         self._goodness_of_fit.set_value(p_data=intensity_simulated, o_data=intens_exp_in_range)
@@ -370,7 +367,7 @@ class GUISpectra(QW.QMainWindow):
         def fit_func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
                      x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
                      y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
-            return self._evolve_spectra(_spc_func, wv_range, slit_func_name,
+            return self._evolve_spectra(_spc_func, slit_func_name,
                                         x, Tvib, Trot_cold, Trot_hot, hot_ratio,
                                         fwhm_g, fwhm_l,
                                         x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2,
@@ -446,25 +443,25 @@ class GUISpectra(QW.QMainWindow):
         slit_func_name = self._parameters_input._fwhm.para_form()
         fwhm_g = self._parameters_input._fwhm.value()['fwhm_g']
         fwhm_l = self._parameters_input._fwhm.value()['fwhm_l']
+        _Tvib = self._parameters_input._temperature.value()['Tvib']
+        _Trot = self._parameters_input._temperature.value()['Trot_cold']
 
         wv_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
         wave_range_corrected = x_correct_func(wv_range)
         wavelength_corrected = x_correct_func(wv_exp_in_range)
         # _spc_func = _spc_func.narrow_range(_range=wave_range_corrected)
-        _spc_func.set_maxwell_distribution(Tvib=4000, Trot=3000)
-        distribution_guess = np.hstack((_spc_func.get_level_params(_spc_func.distribution)[0],
-                                        _spc_func.get_level_params(_spc_func.distribution)[1]))
+        _spc_func.set_maxwell_distribution(Tvib=_Tvib, Trot=_Trot)
+        distribution_guess = _spc_func.get_level_params(_spc_func.distribution)[0]
 
         @tracer
         def fit_func(x, *_distribution):
             #   Now only support OH(A-X, 0-0) band.
             _distri_array = np.array(_distribution)
-            _spc_func.set_state_distribution(F1_distri=_distri_array[:42],
-                                             F2_distri=_distri_array[42:])
+            _spc_func.set_distribution_by_upper_state(F1_distri=_distri_array,
+                                                      F2_distri=_distri_array)
             _spc_func.set_intensity()
             _, in_sim = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
                                                           # wavelength_range=wave_range_corrected,
-                                                          wavelength_range=None,
                                                           slit_func=slit_func_name,
                                                           fwhm=dict(Gaussian=fwhm_g,
                                                                     Lorentzian=fwhm_l),
@@ -473,34 +470,31 @@ class GUISpectra(QW.QMainWindow):
             return _corrected_in_sim
 
         # --------------------------------------------------------------------------------------- #
-        plt.figure()
-        plt.plot(wv_exp_in_range, intens_exp_in_range)
-        _temp_in_sim = fit_func(wv_exp_in_range, *distribution_guess)
-        plt.plot(wv_exp_in_range, _temp_in_sim, label='guess')
         # --------------------------------------------------------------------------------------- #
-
         distribution_fitted, pcov = curve_fit(fit_func,
                                               wv_exp_in_range,
                                               intens_exp_in_range,
                                               bounds=(0, np.inf),
                                               p0=distribution_guess)
 
-        Fev_upper = _spc_func.get_level_params(_spc_func.Fev_upper)[0]
-        gJ_upper = _spc_func.get_level_params(_spc_func.gJ_upper)[0]
         # --------------------------------------------------------------------------------------- #
-        # plt.figure()
-        # plt.plot(wv_exp_in_range, intens_exp_in_range)
+        plt.figure()
+        plt.plot(wv_exp_in_range, intens_exp_in_range)
+        _temp_in_sim = fit_func(wv_exp_in_range, *distribution_guess)
+        plt.plot(wv_exp_in_range, _temp_in_sim, label='guess')
         _temp_in_sim = fit_func(wv_exp_in_range, *distribution_fitted)
         plt.plot(wv_exp_in_range, _temp_in_sim, marker='.', label='fitted')
         plt.legend()
         # --------------------------------------------------------------------------------------- #
+        Fev_upper = _spc_func.get_level_params(_spc_func.Fev_upper)[0]
+        gJ_upper = _spc_func.get_level_params(_spc_func.gJ_upper)[0]
         plt.figure()
-        plt.semilogy(Fev_upper[:25]*const.WNcm2eV, (distribution_guess[:42] / gJ_upper)[:25],
+        plt.semilogy(Fev_upper[:25] * const.WNcm2eV,
+                     (distribution_guess / gJ_upper)[:25],
                      marker='o', label='guess')
-        plt.semilogy(Fev_upper[:25]*const.WNcm2eV, (distribution_fitted[:42] / gJ_upper)[:25],
-                     marker='o', label='F1_dis')
-        plt.semilogy(Fev_upper[:25]*const.WNcm2eV, (distribution_fitted[42:] / gJ_upper)[:25],
-                     marker='o', label='F2_dis')
+        plt.semilogy(Fev_upper[:25] * const.WNcm2eV,
+                     (distribution_fitted / gJ_upper)[:25],
+                     marker='o', label='F_dis')
         plt.legend()
         plt.xlabel("Energy (eV)")
         # plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')

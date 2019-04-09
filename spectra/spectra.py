@@ -95,10 +95,36 @@ class MoleculeState(object):
         return self.Te + self.Ge_term(v) + self.Fev_term(v, J)
 
 
+class UppwerState(object):
+
+    def __init__(self):
+        super().__init__()
+        self.distribution = None
+        self.gv = None
+        self.Ge = None
+        self.gJ = None
+        self.Fev = None
+
+
+# class OH(UppwerState):
+#
+#     def __init__(self, *, state):
+#         super().__init__()
+#         if state=="A":
+#             _N = np.arange(40)
+#             self.N = np.hstack()
+#             _J =
+#             self.gJ =
+#         self.
+
 class Spectra(object):
     WNcm2K = 1.4387773538277204
 
     def __init__(self):
+        r"""
+        wave_number, wave_length, distribution, emission_coeffcients and intensity
+            are all in the same shape.
+        """
         super().__init__()
         self.wave_number = None
         self.wave_length = None
@@ -116,8 +142,10 @@ class Spectra(object):
         self.intensity = self.intensity * 1.9864458241717582e-25  # multiply hc
 
     # ------------------------------------------------------------------------------------------- #
-    def get_extended_wavelength(self, *, waveLength_exp,
-                                fwhm, slit_func, wavelength_range=None,
+    # def get_extended_wavelength(self, *, waveLength_exp,
+    #                             fwhm, slit_func, wavelength_range=None,
+    #                             normalized=False, threshold=3):
+    def get_extended_wavelength(self, *, waveLength_exp, fwhm, slit_func,
                                 normalized=False, threshold=3):
         r"""
         Convolve the slit function on the experiment wavelength.
@@ -132,38 +160,32 @@ class Spectra(object):
         # --------------------------------------------------------------------------------------- #
         #   _chosen :
         #       the boolean to choose the absolute wavelength position in the range.
-        #   wv_exp_chosen :
-        #       the boolean to choose the exp_wavelength in the range.
-        if wavelength_range is None:
-            _chosen = np.ones_like(self.wave_length) > 0
-            wv_exp_chosen = np.ones_like(waveLength_exp) > 0
-        else:
-            _range_added = 3 * (fwhm['Gaussian'] + fwhm['Lorentzian'])
-            _chosen = np.logical_and((wavelength_range[0] - 3 * _range_added) < self.wave_length,
-                                     self.wave_length < (wavelength_range[1] + 3 * _range_added))
-            wv_exp_chosen = np.logical_and(wavelength_range[0] < waveLength_exp,
-                                           wavelength_range[1] > waveLength_exp)
-        # --------------------------------------------------------------------------------------- #
-        #   wavelength_in_range :
-        #       absolute wavelength in the range.
-        #   intensity_in_range :
-        #       absolute intensity in the range.
-        wavelength_in_range = self.wave_length[_chosen]
-        intensity_in_range = self.intensity[_chosen]
-        wv_exp_in_range = waveLength_exp[wv_exp_chosen]
-        #   If the absolute wavelength are all out of the range.
+        _ravel_wavelength = self.wave_length.ravel()
+        _ravel_intensity = self.intensity.ravel()
+        wavelength_range = (waveLength_exp[0], waveLength_exp[-1])
+        _range_added = 3 * (fwhm['Gaussian'] + fwhm['Lorentzian'])
+        _extended_range = (wavelength_range[0] - _range_added,
+                           wavelength_range[1] + _range_added)
+        _chosen = np.logical_and(_extended_range[0] < _ravel_wavelength,
+                                 _extended_range[1] > _ravel_wavelength)
         if not _chosen.any():
-            return wv_exp_in_range, np.zeros_like(wv_exp_in_range)
+            return waveLength_exp, np.zeros_like(waveLength_exp)
+        wavelength_in_range = _ravel_wavelength[_chosen]
+        intensity_in_range = _ravel_intensity[_chosen]
         # --------------------------------------------------------------------------------------- #
         #   Format the matrix of the delta wavelength. Convolve the slit function.
-        delta_wv = (wv_exp_in_range[np.newaxis].transpose() - wavelength_in_range)
+        #                               wavelength_in_range
+        #                               *       *       *
+        #   delta_wv:   wv_exp_in_range *       *       *
+        #                               *       *       *
+        delta_wv = (waveLength_exp[np.newaxis].transpose() - wavelength_in_range)
         normal_intens_extended = self.evolve_slit_func(delta_wv, fwhm, slit_func, threshold)
         intensity_on_wv_exp = normal_intens_extended.dot(intensity_in_range)
         #   Return the wavelength and the simulated intensity in the range.
         if normalized:
             self.normalized_factor = intensity_on_wv_exp.max()
-            return wv_exp_in_range, intensity_on_wv_exp / intensity_on_wv_exp.max()
-        return wv_exp_in_range, intensity_on_wv_exp
+            return waveLength_exp, intensity_on_wv_exp / self.normalized_factor
+        return waveLength_exp, intensity_on_wv_exp
 
     # ------------------------------------------------------------------------------------------- #
     def evolve_slit_func(self, delta_wv, fwhm, slit_func, threshold):
@@ -249,7 +271,7 @@ class MoleculeSpectra(Spectra):
         self.Ge_upper = None
         self.Fev_upper = None
 
-    def set_state_distribution(self):
+    def set_distribution_by_upper_state(self):
         pass
 
     def set_maxwell_distribution(self, *, Tvib, Trot):
@@ -272,31 +294,6 @@ class MoleculeSpectra(Spectra):
         rot_distribution = hot_ratio * warm_part + (1 - hot_ratio) * cold_part
         vib_distribution = self.gv_upper * np.exp(-self.Ge_upper * self.WNcm2K / Tvib)
         self.distribution = vib_distribution * rot_distribution
-
-    def ravel_coefficients(self):
-        self.wave_number = self.wave_number.ravel()
-        self.wave_length = self.wave_length.ravel()
-        self.emission_coefficients = self.emission_coefficients.ravel()
-        self.gv_upper = self.gv_upper.ravel()
-        self.Ge_upper = self.Ge_upper.ravel()
-        self.gJ_upper = self.gJ_upper.ravel()
-        self.Fev_upper = self.Fev_upper.ravel()
-
-    def narrow_range(self, *, _range):
-        _chosen = np.logical_and(_range[0] < self.wave_length, self.wave_length < _range[1])
-        assert _chosen.any()
-        _spectra_copy = deepcopy(self)
-        _spectra_copy.wave_number = self.wave_number[_chosen]
-        _spectra_copy.wave_length = self.wave_length[_chosen]
-        _spectra_copy.emission_coefficients = self.emission_coefficients[_chosen]
-        _spectra_copy.distribution = self.distribution[_chosen]
-        _spectra_copy.intensity = self.intensity[_chosen]
-        ##
-        _spectra_copy.gv_upper = self.gv_upper[_chosen]
-        _spectra_copy.Ge_upper = self.Ge_upper[_chosen]
-        _spectra_copy.gJ_upper = self.gJ_upper[_chosen]
-        _spectra_copy.Fev_upper = self.Fev_upper[_chosen]
-        return _spectra_copy
 
     @staticmethod
     def honl_london_factor(*, band, branch):
@@ -347,9 +344,6 @@ class N2Spectra(MoleculeSpectra):
             self.v_upper)
 
     def _set_Fev(self):
-        # wvnm_path = dir_path + r"\OH(A-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
-        # ec_path = dir_path + r"\OH(A-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
-        # if self.v_upper
         dir_path = os.path.dirname(os.path.realpath(__file__))
         _path = dir_path + r"\N2(C-B)\Fev_{v}.dat".format(v=self.v_upper)
         self.Fev_upper = np.loadtxt(_path)
@@ -407,12 +401,12 @@ class OHSpectra(MoleculeSpectra):
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
 
-    def set_state_distribution(self, *, F1_distri, F2_distri):
-        assert F1_distri.size == 42
-        assert F2_distri.size == 42
+    def set_distribution_by_upper_state(self, *, F1_distri, F2_distri):
+        assert F1_distri.size == 42  # the F1 works from N=0
+        assert F2_distri.size == 42  # the F2 works from N=1
         self.distribution = np.zeros((40, 12))
         self.distribution[:, 0] = F1_distri[0:40]  # P1
-        self.distribution[:, 1] = F2_distri[0:40]  # P2
+        self.distribution[1:, 1] = F2_distri[1:40]  # P2
         self.distribution[:, 2] = F1_distri[1:41]  # Q1
         self.distribution[:, 3] = F2_distri[1:41]  # Q2
         self.distribution[:, 4] = F1_distri[2:42]  # R1

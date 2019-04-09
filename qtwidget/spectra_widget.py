@@ -417,7 +417,7 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
         self._set_spinBoxes()
         self._set_layout()
         self._set_slot()
-        self.degree_combobox.setCurrentText('linear'.upper())
+        self.degree_combobox.setCurrentText("Even")
 
     def para_form(self):
         return self.degree_combobox.currentText().lower()
@@ -430,10 +430,12 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
                     I0=self._spinBoxes['I0'].value())
 
     def state(self):
-        if self.degree_combobox.currentText().lower() == 'even':
-            return [True, False, True, True]
         if self.degree_combobox.currentText().lower() == 'incline':
             return [True, True, True, True]
+        if self.degree_combobox.currentText().lower() == 'even':
+            return [False, False, True, True]
+        if self.degree_combobox.currentText().lower() == 'baselock':
+            return [False, False, False, True]
 
     def is_variable_state(self):
         if self.isChecked():
@@ -449,7 +451,7 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
 
     def correct_func(self, **kwargs):
         x0, k0, c0, I0 = kwargs['x0'], kwargs['k0'], kwargs['c0'], kwargs['I0']
-        return lambda x, y: k0 * (x - x0) + c0 + I0 * y
+        return lambda x, y: k0 * (x - x0) + c0 + (I0 - c0) * y
 
     def _set_labels(self):
         for _str in ('x0', 'k0', 'c0', 'I0'):
@@ -479,8 +481,7 @@ class YOffsetQGroupBox(_DefaultQGroupBox):
         self._spinBoxes['I0'].setValue(1)
 
     def _set_combobox(self):
-        for key in ['even', 'incline']:
-            self.degree_combobox.addItem(key.upper())
+        self.degree_combobox.addItems(("Incline", "Even", "BaseLock"))
 
     def _set_slot(self):
         def slot_emit():
