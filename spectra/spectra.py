@@ -11,6 +11,7 @@ Created on 0:31 2018/4/5
 import os
 import math
 import numpy as np
+from BasicFunc import constants as const
 from copy import deepcopy
 from matplotlib import pyplot as plt
 from .voigt import voigt_pseudo
@@ -106,16 +107,50 @@ class UppwerState(object):
         self.Fev = None
 
 
-# class OH(UppwerState):
-#
-#     def __init__(self, *, state):
-#         super().__init__()
-#         if state=="A":
-#             _N = np.arange(40)
-#             self.N = np.hstack()
-#             _J =
-#             self.gJ =
-#         self.
+class OHState(UppwerState):
+
+    def __init__(self, *, state, v_upper):
+        super().__init__()
+        self.v_upper = v_upper
+        if state == "A":
+            self._N = np.vstack((np.arange(42),  # F1 branch
+                                 np.arange(42)))  # F2 branch
+            self._J = np.vstack((np.arange(42) + 1 / 2,
+                                 np.arange(42) - 1 / 2))
+            self.gJ = 2 * self._J + 1
+            self.gv = 1
+            self.distribution = np.ones_like(self._J)
+        self._set_Ge()
+        self._set_Fev()
+
+    def _set_Fev(self):
+        # 1962 The ultraviolet bands of OH. Table 2
+        OH_A_consts = [[16.961, 0.00204, 0.1122],
+                       [16.129, 0.00203, 0.1056],
+                       [15.287, 0.00208, 0.0997],
+                       [14.422, 0.00206, 0.0980]]
+        Bv, Dv, gama = OH_A_consts[self.v_upper]
+        _N = np.arange(42)
+        _average_term = Bv * _N * (_N + 1) - Dv * _N ** 2 * (_N + 1) ** 2
+        Fev_F1 = _average_term + gama * (_N + 1 / 2)
+        Fev_F2 = _average_term - gama * (_N + 1 / 2)
+        Fev_F2[0] = 0.0
+        self.Fev = np.vstack((Fev_F1, Fev_F2))
+        self.Fev_eV = self.Fev * const.WNcm2eV
+
+    def _set_Ge(self):
+        self.Ge = MoleculeState('OH(A)').Ge_term(self.v_upper)
+        self.Ge_eV = self.Ge * const.WNcm2eV
+
+    def set_distribution(self, _distribution):
+        assert _distribution.shape == (2, 42)
+        self.distribution = _distribution
+
+    def set_maxwell_distribution(self, *, Tvib, Trot):
+        vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
+        rot_distribution = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot)
+        self.distribution = vib_distribution * rot_distribution
+
 
 class Spectra(object):
     WNcm2K = 1.4387773538277204
@@ -274,17 +309,17 @@ class MoleculeSpectra(Spectra):
     def set_distribution_by_upper_state(self):
         pass
 
-    def set_maxwell_distribution(self, *, Tvib, Trot):
-        r"""
-        Set the distribution to a maxwell one.
-        Parameters
-        ----------
-        Tvib : K
-        Trot : K
-        """
-        vib_distribution = self.gv_upper * np.exp(-self.Ge_upper * self.WNcm2K / Tvib)
-        rot_distribution = self.gJ_upper * np.exp(-self.Fev_upper * self.WNcm2K / Trot)
-        self.distribution = vib_distribution * rot_distribution
+    # def set_maxwell_distribution(self, *, Tvib, Trot):
+    #     r"""
+    #     Set the distribution to a maxwell one.
+    #     Parameters
+    #     ----------
+    #     Tvib : K
+    #     Trot : K
+    #     """
+    #     vib_distribution = self.gv_upper * np.exp(-self.Ge_upper * self.WNcm2K / Tvib)
+    #     rot_distribution = self.gJ_upper * np.exp(-self.Fev_upper * self.WNcm2K / Trot)
+    #     self.distribution = vib_distribution * rot_distribution
 
     def set_double_temperature_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
         warm_part = self.gJ_upper * np.exp(-self.Fev_upper * self.WNcm2K / Trot_hot)
@@ -394,6 +429,7 @@ class OHSpectra(MoleculeSpectra):
 
     def __init__(self, *, band, v_upper, v_lower):
         super().__init__()
+        self.upper_state = OHState(state="A", v_upper=v_upper)
         self._set_coefs(band=band, v_upper=v_upper, v_lower=v_lower)
 
     def line_intensity(self, *, branch):
@@ -404,19 +440,27 @@ class OHSpectra(MoleculeSpectra):
     def set_distribution_by_upper_state(self, *, F1_distri, F2_distri):
         assert F1_distri.size == 42  # the F1 works from N=0
         assert F2_distri.size == 42  # the F2 works from N=1
+        self.upper_state.set_distribution(np.vstack((F1_distri, F2_distri)))
+
+    def _set_distribution_from_upper_state_distribution(self):
         self.distribution = np.zeros((40, 12))
-        self.distribution[:, 0] = F1_distri[0:40]  # P1
-        self.distribution[1:, 1] = F2_distri[1:40]  # P2
-        self.distribution[:, 2] = F1_distri[1:41]  # Q1
-        self.distribution[:, 3] = F2_distri[1:41]  # Q2
-        self.distribution[:, 4] = F1_distri[2:42]  # R1
-        self.distribution[:, 5] = F2_distri[2:42]  # R2
-        self.distribution[1:, 6] = F1_distri[0:39]  # O12
-        self.distribution[:, 7] = F1_distri[1:41]  # Q12
-        self.distribution[:, 8] = F1_distri[0:40]  # P12
-        self.distribution[:, 9] = F2_distri[2:42]  # R21
-        self.distribution[:, 10] = F2_distri[1:41]  # Q21
-        self.distribution[:-1, 11] = F2_distri[3:]  # S21
+        self.distribution[:, 0] = self.upper_state.distribution[0, 0:40]  # P1
+        self.distribution[1:, 1] = self.upper_state.distribution[1, 1:40]  # P2
+        self.distribution[:, 2] = self.upper_state.distribution[0, 1:41]  # Q1
+        self.distribution[:, 3] = self.upper_state.distribution[1, 1:41]  # Q2
+        self.distribution[:, 4] = self.upper_state.distribution[0, 2:42]  # R1
+        self.distribution[:, 5] = self.upper_state.distribution[1, 2:42]  # R2
+        self.distribution[1:, 6] = self.upper_state.distribution[0, 0:39]  # O12
+        self.distribution[:, 7] = self.upper_state.distribution[0, 1:41]  # Q12
+        self.distribution[:, 8] = self.upper_state.distribution[0, 0:40]  # P12
+        self.distribution[:, 9] = self.upper_state.distribution[1, 2:42]  # R21
+        self.distribution[:, 10] = self.upper_state.distribution[1, 1:41]  # Q21
+        self.distribution[:-1, 11] = self.upper_state.distribution[1, 3:]  # S21
+
+    def set_maxwell_distribution(self, *, Tvib, Trot):
+        vib_distribution = self.upper_state.gv * np.exp(-self.upper_state.Ge * self.WNcm2K / Tvib)
+        rot_distribution = self.upper_state.gJ * np.exp(-self.upper_state.Fev * self.WNcm2K / Trot)
+        self.distribution = vib_distribution * rot_distribution
 
     def set_distribution(self, _distribution):
         self.distribution = _distribution

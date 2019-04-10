@@ -10,28 +10,32 @@ Created on  16:30 2019/3/11
 """
 import numpy as np
 from scipy.optimize import curve_fit
-from spectra import OHSpectra
+from spectra import OHState
 from matplotlib import pyplot as plt
 
-OH = OHSpectra(band='A-X', v_upper=0, v_lower=0)
+OH = OHState(state="A", v_upper=0)
+OH.set_maxwell_distribution(Tvib=3000, Trot=3000)
+plt.semilogy(OH.Fev_eV[0], OH.distribution[0]/OH.gJ[0], marker='.')
+plt.semilogy(OH.Fev_eV[1], OH.distribution[1]/OH.gJ[1], marker='.')
+# OH = OHSpectra(band='A-X', v_upper=0, v_lower=0)
 # OH.ravel_coefficients()
 
-wv_exp = np.linspace(305.5, 319.5, num=500)
+# wv_exp = np.linspace(305.5, 319.5, num=500)
 # OH = OH.narrow_range(_range=(wv_exp[0], wv_exp[-1]))
 # ----------------------------------------------------------------------------------------------- #
-OH.set_maxwell_distribution(Tvib=4000, Trot=2000)
+# OH.set_maxwell_distribution(Tvib=4000, Trot=2000)
 # _distribution = np.ones_like(OH.wave_length)
 # _distribution = np.abs(np.random.randn(OH.wave_length.size))
 # _distribution[np.logical_and(309.0<OH.wave_length, OH.wave_length<309.2)] = 0
 # OH.set_distribution(distribution=_distribution)
 # ----------------------------------------------------------------------------------------------- #
-OH.set_intensity()
-_, in_sim_to_fit = OH.get_extended_wavelength(waveLength_exp=wv_exp,
-                                              fwhm=dict(Gaussian=0.01, Lorentzian=0.02),
-                                              slit_func='Voigt')
-
-plt.figure()
-plt.plot(wv_exp, in_sim_to_fit)
+# OH.set_intensity()
+# _, in_sim_to_fit = OH.get_extended_wavelength(waveLength_exp=wv_exp,
+#                                               fwhm=dict(Gaussian=0.01, Lorentzian=0.02),
+#                                               slit_func='Voigt')
+#
+# plt.figure()
+# plt.plot(wv_exp, in_sim_to_fit)
 
 # ----------------------------------------------------------------------------------------------- #
 # def func_fit(x, *distribution):
