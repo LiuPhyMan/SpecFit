@@ -161,7 +161,7 @@ class OHState(UppwerState):
                          where=self.gJ != 0)
 
     def set_distribution(self, _distribution):
-        assert _distribution.shape == (2, self.N_max + 1)
+        assert _distribution.shape == (2, self.N_max + 1), _distribution.shape
         self.distribution = _distribution
 
     def set_maxwell_distribution(self, *, Tvib, Trot):
@@ -476,8 +476,8 @@ class OHSpectra(MoleculeSpectra):
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
 
-    def set_upper_state_distribution(self, *, F1_distri, F2_distri):
-        self.upper_state.set_distribution(np.vstack((F1_distri, F2_distri)))
+    def set_upper_state_distribution(self, *, _distribution):
+        self.upper_state.set_distribution(_distribution)
         self._set_distribution_from_upper_state_distribution()
 
     def set_maxwell_upper_state_distribution(self, *, Tvib, Trot):
@@ -647,11 +647,19 @@ class AddSpectra(MoleculeSpectra):
         for spec in self.specs:
             spec.set_intensity()
 
-    # def set_upper_state_distribution
+    def set_upper_state_distribution(self, *_distributions):
+        for i, spec in enumerate(self.specs):
+            spec.set_upper_state_distribution(_distribution=_distributions[i])
 
     def set_maxwell_upper_state_distribution(self, *, Tvib, Trot):
         for spec in self.specs:
             spec.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
+
+    def set_double_maxwell_upper_state_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
+        for spec in self.specs:
+            spec.set_double_maxwell_upper_state_distribution(Tvib=Tvib, Trot_cold=Trot_cold,
+                                                             Trot_hot=Trot_hot,
+                                                             hot_ratio=hot_ratio)
 
     def get_extended_wavelength(self, *, waveLength_exp, fwhm, slit_func,
                                 normalized=False, threshold=3):

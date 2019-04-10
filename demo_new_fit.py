@@ -23,18 +23,23 @@ wv_exp = np.linspace(308.5, 315, num=2000)
 Tvib = 5000
 Trot = 2000
 
-for _spec in (OH_0, OH_1, OH):
-    _spec.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
-    _spec.set_intensity()
-    x, y = _spec.get_extended_wavelength(waveLength_exp=wv_exp,
-                                      fwhm=dict(Gaussian=0.01, Lorentzian=0.02),
-                                      slit_func="Voigt")
-    plt.plot(x, y)
+OH.set_upper_state_distribution(*[np.ones((2, 42)), np.ones((2, 40))])
+OH.set_intensity()
+x, y = OH.get_extended_wavelength(waveLength_exp=wv_exp,
+                                  fwhm=dict(Gaussian=0.01, Lorentzian=0.02),
+                                  slit_func="Voigt")
+# for _spec in (OH_0, OH_1, OH):
+#     _spec.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
+#     _spec.set_intensity()
+#     x, y = _spec.get_extended_wavelength(waveLength_exp=wv_exp,
+#                                       fwhm=dict(Gaussian=0.01, Lorentzian=0.02),
+#                                       slit_func="Voigt")
+#     plt.plot(x, y)
 
-OH_0.upper_state.plot_distribution()
-OH_1.upper_state.plot_distribution(new_figure=False)
+# OH_0.upper_state.plot_distribution()
+# OH_1.upper_state.plot_distribution(new_figure=False)
 
-OH
+# OH
 # for Tvib in np.arange(500, 6000, 500):
 #     OH.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=2000)
 #     OH.set_intensity()

@@ -447,7 +447,7 @@ class GUISpectra(QW.QMainWindow):
         wave_range_corrected = x_correct_func(wv_range)
         wavelength_corrected = x_correct_func(wv_exp_in_range)
         # _spc_func = _spc_func.narrow_range(_range=wave_range_corrected)
-        _spc_func.set_maxwell_distribution(Tvib=_Tvib, Trot=_Trot)
+        _spc_func.set_maxwell_upper_state_distribution(Tvib=_Tvib, Trot=_Trot)
         distribution_guess = _spc_func.get_level_params(_spc_func.distribution)[0]
 
         @tracer
