@@ -264,12 +264,12 @@ class GUISpectra(QW.QMainWindow):
         #   1. Set distribution.
         #       This part is associated with Tvib, Trot_cold, Trot_hot, hot_ratio.
         if self._parameters_input._temperature.para_form() == 'one_Trot':
-            _spc_func.set_maxwell_distribution(Tvib=Tvib, Trot=Trot_cold)
+            _spc_func.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot_cold)
         else:
-            _spc_func.set_double_temperature_distribution(Tvib=Tvib,
-                                                          Trot_cold=Trot_cold,
-                                                          Trot_hot=Trot_hot,
-                                                          hot_ratio=hot_ratio)
+            _spc_func.set_double_maxwell_upper_state_distribution(Tvib=Tvib,
+                                                                  Trot_cold=Trot_cold,
+                                                                  Trot_hot=Trot_hot,
+                                                                  hot_ratio=hot_ratio)
         # --------------------------------------------------------------------------------------- #
         #   2. Set intensity without profile function.
         _spc_func.set_intensity()
@@ -287,7 +287,7 @@ class GUISpectra(QW.QMainWindow):
         #   Calculate the absolute wavelength position to evolve the intensity and its range.
         wavelength_corrected = self.x_correct_func(x)
         # --------------------------------------------------------------------------------------- #
-        #   4. Evolve the spectra on the corrected wavelenth.
+        #   4. Evolve the spectra on the corrected wavelength.
         _, intens = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
                                                       slit_func=slit_func_name,
                                                       fwhm={'Gaussian': fwhm_g,
@@ -328,12 +328,12 @@ class GUISpectra(QW.QMainWindow):
             _spc_func = OHSpectra(band='A-X', v_upper=v_upper, v_lower=v_lower)
         # set distribution
         if Trot_para_form == 'one_Trot':
-            _spc_func.set_maxwell_distribution(Tvib=Tvib, Trot=Trot_cold)
+            _spc_func.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot_cold)
         else:
-            _spc_func.set_double_temperature_distribution(Tvib=Tvib,
-                                                          Trot_cold=Trot_cold,
-                                                          Trot_hot=Trot_hot,
-                                                          hot_ratio=hot_ratio)
+            _spc_func.set_double_maxwell_upper_state_distribution(Tvib=Tvib,
+                                                                  Trot_cold=Trot_cold,
+                                                                  Trot_hot=Trot_hot,
+                                                                  hot_ratio=hot_ratio)
         # set intensity
         _spc_func.set_intensity()
         wv, intens = _spc_func.line_intensity(branch=branch)
@@ -361,7 +361,7 @@ class GUISpectra(QW.QMainWindow):
     # ------------------------------------------------------------------------------------------- #
     def sim_exp(self):
         _spc_func = self._spectra_tree.spectra_func
-        wv_range = self._wavelength_range.value()
+        # wv_range = self._wavelength_range.value()
         slit_func_name = self._parameters_input._fwhm.para_form()
 
         def fit_func(x, Tvib, Trot_cold, Trot_hot, hot_ratio, fwhm_g, fwhm_l,
@@ -424,9 +424,6 @@ class GUISpectra(QW.QMainWindow):
         self._goodness_of_fit.set_value(p_data=self._sim_result.best_fit,
                                         o_data=self._sim_result.data)
         self._output.setHtml(self.simulated_result_str())
-        # self._output.setTextFormat(Qt.RichText)
-        # self._output.setWordWrap(True)
-        # self._output.setPlainText()
         #   Show report.
         self.show_report()
 

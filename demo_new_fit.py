@@ -10,13 +10,40 @@ Created on  16:30 2019/3/11
 """
 import numpy as np
 from scipy.optimize import curve_fit
-from spectra import OHState
+from spectra import OHState, OHSpectra, AddSpectra, MoleculeSpectra
 from matplotlib import pyplot as plt
 
-OH = OHState(state="A", v_upper=0)
-OH.set_maxwell_distribution(Tvib=3000, Trot=3000)
-plt.semilogy(OH.Fev_eV[0], OH.distribution[0]/OH.gJ[0], marker='.')
-plt.semilogy(OH.Fev_eV[1], OH.distribution[1]/OH.gJ[1], marker='.')
+OH_0 = OHSpectra(band='A-X', v_upper=0, v_lower=0)
+OH_1 = OHSpectra(band="A-X", v_upper=1, v_lower=1)
+# OH_2 = OHSpectra(band="A-X", v_upper=2, v_lower=2)
+
+OH = AddSpectra(OH_0, OH_1)
+
+wv_exp = np.linspace(308.5, 315, num=2000)
+Tvib = 5000
+Trot = 2000
+
+for _spec in (OH_0, OH_1, OH):
+    _spec.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
+    _spec.set_intensity()
+    x, y = _spec.get_extended_wavelength(waveLength_exp=wv_exp,
+                                      fwhm=dict(Gaussian=0.01, Lorentzian=0.02),
+                                      slit_func="Voigt")
+    plt.plot(x, y)
+
+OH_0.upper_state.plot_distribution()
+OH_1.upper_state.plot_distribution(new_figure=False)
+
+OH
+# for Tvib in np.arange(500, 6000, 500):
+#     OH.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=2000)
+#     OH.set_intensity()
+#     x, y = OH.get_extended_wavelength(waveLength_exp=wv_exp,
+#                                       fwhm=dict(Gaussian=0.01, Lorentzian=0.01),
+#                                       slit_func="Voigt", normalized=True)
+# plt.legend()
+# OH.set_maxwell_distribution(Tvib=3000, Trot=3000)
+
 # OH = OHSpectra(band='A-X', v_upper=0, v_lower=0)
 # OH.ravel_coefficients()
 
