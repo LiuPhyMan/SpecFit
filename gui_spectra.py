@@ -448,17 +448,15 @@ class GUISpectra(QW.QMainWindow):
         wavelength_corrected = x_correct_func(wv_exp_in_range)
         # _spc_func = _spc_func.narrow_range(_range=wave_range_corrected)
         _spc_func.set_maxwell_upper_state_distribution(Tvib=_Tvib, Trot=_Trot)
-        distribution_guess = _spc_func.get_level_params(_spc_func.distribution)[0]
+        distribution_guess = _spc_func.upper_state_ravel_distribution()
 
         @tracer
         def fit_func(x, *_distribution):
             #   Now only support OH(A-X, 0-0) band.
             _distri_array = np.array(_distribution)
-            _spc_func.set_distribution_by_upper_state(F1_distri=_distri_array,
-                                                      F2_distri=_distri_array)
+            _spc_func.set_upper_state_distribution(_distri_array)
             _spc_func.set_intensity()
             _, in_sim = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
-                                                          # wavelength_range=wave_range_corrected,
                                                           slit_func=slit_func_name,
                                                           fwhm=dict(Gaussian=fwhm_g,
                                                                     Lorentzian=fwhm_l),
@@ -472,30 +470,35 @@ class GUISpectra(QW.QMainWindow):
                                               wv_exp_in_range,
                                               intens_exp_in_range,
                                               bounds=(0, np.inf),
-                                              p0=distribution_guess)
-
+                                              p0=distribution_guess,
+                                              ftol=self._fit_kws_input.value()['ftol'])
+        perr = np.sqrt(np.diag(pcov))
         # --------------------------------------------------------------------------------------- #
         plt.figure()
-        plt.plot(wv_exp_in_range, intens_exp_in_range)
-        _temp_in_sim = fit_func(wv_exp_in_range, *distribution_guess)
-        plt.plot(wv_exp_in_range, _temp_in_sim, label='guess')
-        _temp_in_sim = fit_func(wv_exp_in_range, *distribution_fitted)
-        plt.plot(wv_exp_in_range, _temp_in_sim, marker='.', label='fitted')
+        plt.plot(wv_exp_in_range, intens_exp_in_range,
+                 label="exp")
+        plt.plot(wv_exp_in_range, fit_func(wv_exp_in_range, *distribution_guess),
+                 label='guess')
+        plt.plot(wv_exp_in_range, fit_func(wv_exp_in_range, *distribution_fitted),
+                 marker='.', label='fitted')
         plt.legend()
         # --------------------------------------------------------------------------------------- #
-        Fev_upper = _spc_func.get_level_params(_spc_func.Fev_upper)[0]
-        gJ_upper = _spc_func.get_level_params(_spc_func.gJ_upper)[0]
-        plt.figure()
-        plt.semilogy(Fev_upper[:25] * const.WNcm2eV,
-                     (distribution_guess / gJ_upper)[:25],
-                     marker='o', label='guess')
-        plt.semilogy(Fev_upper[:25] * const.WNcm2eV,
-                     (distribution_fitted / gJ_upper)[:25],
-                     marker='o', label='F_dis')
-        plt.legend()
-        plt.xlabel("Energy (eV)")
-        # plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')
-        print(distribution_fitted)
+        # plt.figure()
+        # plt.errorbar(np.arange(distribution_fitted.size), distribution_fitted, yerr=perr)
+        # --------------------------------------------------------------------------------------- #
+        # Fev_upper = _spc_func.get_level_params(_spc_func.Fev_upper)[0]
+        # gJ_upper = _spc_func.get_level_params(_spc_func.gJ_upper)[0]
+        # plt.figure()
+        # plt.semilogy(Fev_upper[:25] * const.WNcm2eV,
+        #              (distribution_guess / gJ_upper)[:25],
+        #              marker='o', label='guess')
+        # plt.semilogy(Fev_upper[:25] * const.WNcm2eV,
+        #              (distribution_fitted / gJ_upper)[:25],
+        #              marker='o', label='F_dis')
+        # plt.legend()
+        # plt.xlabel("Energy (eV)")
+        # # plt.plot(_spc_func.Fev_upper, distribution_fitted/_spc_func.gJ_upper, '.')
+        # print(distribution_fitted)
 
     # ------------------------------------------------------------------------------------------- #
     def simulated_result_str(self):

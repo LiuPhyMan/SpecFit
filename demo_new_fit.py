@@ -23,7 +23,8 @@ wv_exp = np.linspace(308.5, 315, num=2000)
 Tvib = 5000
 Trot = 2000
 
-OH.set_upper_state_distribution(*[np.ones((2, 42)), np.ones((2, 40))])
+# OH.set_upper_state_distribution(*[np.ones((2, 42)), np.ones((2, 40))])
+OH.set_maxwell_upper_state_distribution(Tvib=4000, Trot=2000)
 OH.set_intensity()
 x, y = OH.get_extended_wavelength(waveLength_exp=wv_exp,
                                   fwhm=dict(Gaussian=0.01, Lorentzian=0.02),

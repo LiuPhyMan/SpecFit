@@ -11,6 +11,7 @@ Created on 0:31 2018/4/5
 import os
 import math
 import numpy as np
+import pandas as pd
 from BasicFunc import constants as const
 from copy import deepcopy
 from matplotlib import pyplot as plt
@@ -130,8 +131,28 @@ class OHState(UppwerState):
             self.gJ = 2 * self._J + 1
             self.gv = 1
             self.distribution = np.ones_like(self._J)
+            self.distribution_error = np.zeros_like(self._J)
+        self.shape = self._N.shape
+        self.size = self._N.size
         self._set_Ge()
         self._set_Fev()
+
+    def _dataFrame(self):
+        _df = pd.DataFrame(index=range((self.N_max + 1) * 2),
+                           columns=["state", "v", "branch", "N", "J",
+                                    "gJ", "energy",
+                                    "distri.", "reduced_distri.", "distri._error"])
+        _df["state"] = "OH(A)"
+        _df["v"] = self.v_upper
+        _df["branch"] = ["F1"] * (self.N_max + 1) + ["F2"] * (self.N_max + 1)
+        _df["N"] = self._N.ravel()
+        _df["J"] = self._J.ravel()
+        _df["gJ"] = self.gJ.ravel()
+        _df["energy"] = self.energy_term().ravel()
+        _df["distri."] = self.ravel_distribution()
+        _df["reduced_distri."] = self.reduced_distribution().ravel()
+        _df["distri._error"] = self.distribution_error.ravel()
+        return _df
 
     def _set_Ge(self):
         self.Ge = MoleculeState('OH(A)').Ge_term(self.v_upper)
@@ -160,9 +181,20 @@ class OHState(UppwerState):
                          out=np.zeros_like(self.distribution),
                          where=self.gJ != 0)
 
+    def ravel_distribution(self):
+        return self.distribution.ravel()
+
     def set_distribution(self, _distribution):
-        assert _distribution.shape == (2, self.N_max + 1), _distribution.shape
-        self.distribution = _distribution
+        if len(_distribution.shape) == 1:
+            assert _distribution.shape[0] == 2 * (self.N_max + 1), _distribution.shape
+            self.distribution = _distribution.reshape((2, -1))
+        else:
+            assert _distribution.shape == (2, self.N_max + 1)
+            self.distribution = _distribution
+
+    def set_distribution_error(self, _distri_error):
+        assert _distri_error.shape[0] == 2 * (self.N_max + 1), _distri_error.shape
+        self.distribution_error = _distri_error.reshape((2, -1))
 
     def set_maxwell_distribution(self, *, Tvib, Trot):
         vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
@@ -476,9 +508,18 @@ class OHSpectra(MoleculeSpectra):
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
 
-    def set_upper_state_distribution(self, *, _distribution):
+    def upper_state_dataframe(self):
+        return self.upper_state._dataFrame()
+
+    def upper_state_ravel_distribution(self):
+        return self.upper_state.ravel_distribution()
+
+    def set_upper_state_distribution(self, _distribution):
         self.upper_state.set_distribution(_distribution)
         self._set_distribution_from_upper_state_distribution()
+
+    def set_upper_state_distribution_error(self, _distri_error):
+        self.upper_state.set_distribution_error(_distri_error)
 
     def set_maxwell_upper_state_distribution(self, *, Tvib, Trot):
         self.upper_state.set_maxwell_distribution(Tvib=Tvib, Trot=Trot)
@@ -633,23 +674,40 @@ class AddSpectra(MoleculeSpectra):
             self.specs = spec0.specs + [spec1]
         else:
             self.specs = [spec0, spec1]
-        # combine_coefs = lambda a, b: np.hstack((a.ravel(), b.ravel()))
-        # self.wave_number = combine_coefs(spec0.wave_number, spec1.wave_number)
-        # self.wave_length = combine_coefs(spec0.wave_length, spec1.wave_length)
-        # self.emission_coefficients = combine_coefs(spec0.emission_coefficients,
-        #                                            spec1.emission_coefficients)
-        # self.gv_upper = combine_coefs(spec0.gv_upper, spec1.gv_upper)
-        # self.gJ_upper = combine_coefs(spec0.gJ_upper, spec1.gJ_upper)
-        # self.Ge_upper = combine_coefs(spec0.Ge_upper, spec1.Ge_upper)
-        # self.Fev_upper = combine_coefs(spec0.Fev_upper, spec1.Fev_upper)
+        self.bands_num = len(self.specs)
 
     def set_intensity(self):
         for spec in self.specs:
             spec.set_intensity()
 
-    def set_upper_state_distribution(self, *_distributions):
+    def upper_state_dataframe(self):
+        _df = pd.DataFrame(columns=self.specs[0].upper_state_dataframe().columns)
+        for spec in self.specs:
+            _df = _df.append(spec.upper_state_dataframe())
+        return _df
+
+    def upper_state_ravel_distribution(self):
+        ravel_distribution = np.empty(0)
+        for spec in self.specs:
+            ravel_distribution = np.hstack((ravel_distribution,
+                                            spec.upper_state_ravel_distribution()))
+        return ravel_distribution
+
+    def set_upper_state_distribution(self, _distributions):
+        _from = 0
+        _to = 0
         for i, spec in enumerate(self.specs):
-            spec.set_upper_state_distribution(_distribution=_distributions[i])
+            _from = _to
+            _to += spec.upper_state.size
+            spec.set_upper_state_distribution(_distributions[_from:_to])
+
+    def set_upper_state_distribution_error(self, _distri_error):
+        _from = 0
+        _to = 0
+        for i, spec in enumerate(self.specs):
+            _from = _to
+            _to += spec.upper_state.size
+            spec.set_upper_state_distribution_error(_distri_error[_from:_to])
 
     def set_maxwell_upper_state_distribution(self, *, Tvib, Trot):
         for spec in self.specs:
