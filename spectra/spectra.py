@@ -75,6 +75,10 @@ class MoleculeState(object):
             #           of Nitrogen and Oxygen"
             vib_const = np.array([2047.18, -28.445, 2.0883, -5.350e-1])
             return vib_const.dot(np.power(v + .5, [1, 2, 3, 4]))
+        elif self.state == "N2p(B)":
+            # v numbers :
+
+            vib_const = np.array()
         else:
             return self.we * (v + .5) - self.wexe * (v + .5) ** 2
 
@@ -107,11 +111,17 @@ class UppwerState(object):
         self.gJ = None
         self.Fev = None
 
+    def set_maxwell_distribution(self, *, Tvib, Trot):
+        vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
+        rot_distribution = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot)
+        self.distribution = vib_distribution * rot_distribution
+
 
 class OHState(UppwerState):
 
     def __init__(self, *, state, v_upper):
         super().__init__()
+        self.state = state
         self.v_upper = v_upper
         if v_upper == 0:
             self.N_max = 41
@@ -121,7 +131,7 @@ class OHState(UppwerState):
             self.N_max = 35
         if v_upper == 3:
             self.N_max = 32
-        if state == "A":
+        if self.state == "A":
             self.Te = 32684.1  # from NIST in unit of cm-1
             self.Te_eV = self.Te * const.WNcm2eV
             self._N = np.vstack((np.arange(self.N_max + 1),  # F1 branch
@@ -196,11 +206,6 @@ class OHState(UppwerState):
         assert _distri_error.shape[0] == 2 * (self.N_max + 1), _distri_error.shape
         self.distribution_error = _distri_error.reshape((2, -1))
 
-    def set_maxwell_distribution(self, *, Tvib, Trot):
-        vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
-        rot_distribution = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot)
-        self.distribution = vib_distribution * rot_distribution
-
     def set_double_maxwell_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
         hot_part = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot_hot)
         cold_part = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot_cold)
@@ -210,19 +215,49 @@ class OHState(UppwerState):
         vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
         self.distribution = vib_distribution * rot_distribution
 
-    def plot_distribution(self, *, new_figure=True):
+    def plot_distribution(self, *, branch="both", new_figure=True):
         if new_figure is True:
             plt.figure()
-        plt.semilogy(self.energy_term()[0] * const.WNcm2eV,
-                     self.reduced_distribution()[0], marker='o',
-                     label='F1_branch')
-        plt.semilogy(self.energy_term()[1, 1:] * const.WNcm2eV,
-                     self.reduced_distribution()[1, 1:], marker='o',
-                     label="F2_branch")
+        if branch in ("F1", "both"):
+            plt.errorbar(self.energy_term()[0] * const.WNcm2eV,
+                         self.distribution[0],
+                         yerr=self.distribution_error[0],
+                         marker='o', capsize=5, label='F1_branch')
+        if branch in ("F2", "both"):
+            plt.errorbar(self.energy_term()[1, 1:] * const.WNcm2eV,
+                         self.distribution[1, 1:],
+                         yerr=self.distribution_error[1, 1:],
+                         marker='o', capsize=5, label='F2_branch')
         plt.xlabel("Energy (eV)")
-        plt.ylabel("reduced distribution")
+        plt.ylabel("Distri.")
+        plt.title("OH({state}), v={v}".format(state=self.state, v=self.v_upper))
         plt.grid(linestyle="-.", alpha=0.7)
         plt.legend()
+
+    def plot_reduced_distribution(self, *, branch="both", new_figure=True):
+        if new_figure is True:
+            plt.figure()
+        if branch in ("F1", "both"):
+            plt.semilogy(self.energy_term()[0] * const.WNcm2eV,
+                         self.reduced_distribution()[0],
+                         marker='o', label='F1_branch')
+        if branch in ("F2", "both"):
+            plt.semilogy(self.energy_term()[1, 1:] * const.WNcm2eV,
+                         self.reduced_distribution()[1, 1:],
+                         marker='o', label='F2_branch')
+        plt.xlabel("Energy (eV)")
+        plt.ylabel("Reduced. Distri.")
+        plt.title("OH({state}), v={v}".format(state=self.state, v=self.v_upper))
+        plt.grid(linestyle="-.", alpha=0.7)
+        plt.legend()
+
+
+class N2pState(UppwerState):
+
+    def __init__(self, *, state, v_upper):
+        super().__init__()
+        self.state = state
+        self.v_upper = v_upper
 
 
 class Spectra(object):
@@ -547,25 +582,6 @@ class OHSpectra(MoleculeSpectra):
         self.distribution[:, 10] = self.upper_state.distribution[1, 1:N_max]  # Q21
         self.distribution[:-1, 11] = self.upper_state.distribution[1, 3:]  # S21
 
-    # def get_level_params(self, params):
-    #     F1_part = np.hstack((params[:, 0],
-    #                          params[-1, 2],
-    #                          params[-1, 4]))
-    #     F2_part = np.hstack((params[:, 1],
-    #                          params[-1, 3],
-    #                          params[-1, 5]))
-    #     return F1_part, F2_part
-
-    # def get_level_gJ_upper(self):
-    #     F1_gJ = np.hstack((self.gJ_upper[:, 0],
-    #                        self.gJ_upper[-1, 2],
-    #                        self.gJ_upper[-1, 4]))
-    #     F2_gJ = np.hstack((self.gJ_upper[:, 1],
-    #                        self.gJ_upper[-1, 3],
-    #                        self.gJ_upper[-1, 5]))
-    #     return dict(F1_gJ_upper=F1_gJ,
-    #                 F2_gJ_upper=F2_gJ)
-
     def _set_coefs(self, *, band, v_upper, v_lower):
         assert band == 'A-X'
         # assert (v_upper, v_lower) in ((0, 0), (1, 0), (1, 1))
@@ -583,36 +599,6 @@ class OHSpectra(MoleculeSpectra):
         self.emission_coefficients = read_coefficients_from_csv(ec_path)
         # self._set_Ge(v_upper)
         # self._set_Fev(v_upper)
-
-    # def _set_Ge(self, v_upper):
-    #     self.gv_upper = np.ones_like(self.wave_length)
-    #     self.Ge_upper = np.ones_like(self.wave_length) * MoleculeState('OH(A)').Ge_term(v_upper)
-
-    # def _set_Fev(self, v_upper):
-    #     N_max = self.wave_length.shape[0]
-    #     self.N_lower = np.tile(np.arange(1, N_max + 1), (12, 1)).transpose()
-    #     self.J_lower = self.N_lower + .5 * np.tile([1, -1, 1, -1, 1, -1, -1, -1, -1, 1, 1, 1],
-    #                                                (N_max, 1))
-    #     self.N_upper = self.N_lower + np.tile([-1, -1, 0, 0, 1, 1, -2, 0, -1, 1, 0, 2], (N_max, 1))
-    #     self.J_upper = self.N_upper + .5 * np.tile([1, -1, 1, -1, 1, -1, 1, 1, 1, -1, -1, -1],
-    #                                                (N_max, 1))
-    #     self.gJ_upper = 2 * self.J_upper + 1
-    #     # 1962 The ultraviolet bands of OH. Table 2
-    #     OH_A_consts = [[16.961, 0.00204, 0.1122],
-    #                    [16.129, 0.00203, 0.1056],
-    #                    [15.287, 0.00208, 0.0997],
-    #                    [14.422, 0.00206, 0.0980]]
-    #     Bv, Dv, gama = OH_A_consts[v_upper]
-    #     ##
-    #     self.Fev_upper = np.zeros_like(self.gJ_upper)
-    #     for i_branch in range(12):
-    #         _N = self.N_upper[:, i_branch]
-    #         _average_term = Bv * _N * (_N + 1) - Dv * _N ** 2 * (_N + 1) ** 2
-    #         if i_branch in (0, 2, 4, 6, 7, 8):  # F1
-    #             temp = _average_term + gama * (_N + .5)
-    #         else:  # F2
-    #             temp = _average_term - gama * (_N + .5)
-    #         self.Fev_upper[:, i_branch] = temp
 
 
 class COSpectra(MoleculeSpectra):

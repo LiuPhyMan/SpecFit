@@ -29,6 +29,8 @@ OH.set_intensity()
 x, y = OH.get_extended_wavelength(waveLength_exp=wv_exp,
                                   fwhm=dict(Gaussian=0.01, Lorentzian=0.02),
                                   slit_func="Voigt")
+df = OH.upper_state_dataframe()
+OH.set_upper_state_distribution_error(np.random.random(164))
 # for _spec in (OH_0, OH_1, OH):
 #     _spec.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
 #     _spec.set_intensity()
