@@ -76,9 +76,11 @@ class MoleculeState(object):
             vib_const = np.array([2047.18, -28.445, 2.0883, -5.350e-1])
             return vib_const.dot(np.power(v + .5, [1, 2, 3, 4]))
         elif self.state == "N2p(B)":
-            # v numbers :
-
-            vib_const = np.array()
+            # v numbers : 0-4
+            # Ref :     "Improved Fits for the Vibrational and Rotational Constants of Many States
+            #           of Nitrogen and Oxygen"
+            vib_const = np.array([2420.83, -23.851, -0.3587, -6.192e-2])
+            return vib_const.dot(np.power(v + .5, [1, 2, 3, 4]))
         else:
             return self.we * (v + .5) - self.wexe * (v + .5) ** 2
 
@@ -94,6 +96,8 @@ class MoleculeState(object):
             L = 1  # total orbital momentum in the direction of the axis
             Fev = Bv * (J * (J + 1) - L) - Dv * J ** 2 * (J + 1) ** 2
             return Fev
+        elif self.state == 'N2p(B)':
+            return None
         else:
             return
 
@@ -111,9 +115,29 @@ class UppwerState(object):
         self.gJ = None
         self.Fev = None
 
+    def energy_term(self):
+        return self.Te + self.Ge + self.Fev
+
+    def ravel_distribution(self):
+        return self.distribution.ravel()
+
+    def reduced_distribution(self):
+        return np.divide(self.distribution, self.gJ,
+                         out=np.zeros_like(self.distribution),
+                         where=self.gJ != 0)
+
     def set_maxwell_distribution(self, *, Tvib, Trot):
         vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
         rot_distribution = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot)
+        self.distribution = vib_distribution * rot_distribution
+
+    def set_double_maxwell_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
+        hot_part = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot_hot)
+        cold_part = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot_cold)
+        hot_part = hot_part / hot_part.sum()
+        cold_part = cold_part / cold_part.sum()
+        rot_distribution = hot_ratio * hot_part + (1 - hot_ratio) * cold_part
+        vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
         self.distribution = vib_distribution * rot_distribution
 
 
@@ -183,17 +207,6 @@ class OHState(UppwerState):
         self.Fev = np.vstack((Fev_F1, Fev_F2))
         self.Fev_eV = self.Fev * const.WNcm2eV
 
-    def energy_term(self):
-        return self.Te + self.Ge + self.Fev
-
-    def reduced_distribution(self):
-        return np.divide(self.distribution, self.gJ,
-                         out=np.zeros_like(self.distribution),
-                         where=self.gJ != 0)
-
-    def ravel_distribution(self):
-        return self.distribution.ravel()
-
     def set_distribution(self, _distribution):
         if len(_distribution.shape) == 1:
             assert _distribution.shape[0] == 2 * (self.N_max + 1), _distribution.shape
@@ -205,15 +218,6 @@ class OHState(UppwerState):
     def set_distribution_error(self, _distri_error):
         assert _distri_error.shape[0] == 2 * (self.N_max + 1), _distri_error.shape
         self.distribution_error = _distri_error.reshape((2, -1))
-
-    def set_double_maxwell_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
-        hot_part = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot_hot)
-        cold_part = self.gJ * np.exp(-self.Fev * const.WNcm2K / Trot_cold)
-        hot_part = hot_part / hot_part.sum()
-        cold_part = cold_part / cold_part.sum()
-        rot_distribution = hot_ratio * hot_part + (1 - hot_ratio) * cold_part
-        vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
-        self.distribution = vib_distribution * rot_distribution
 
     def plot_distribution(self, *, branch="both", new_figure=True):
         if new_figure is True:
@@ -258,6 +262,27 @@ class N2pState(UppwerState):
         super().__init__()
         self.state = state
         self.v_upper = v_upper
+        self.N_max = 86
+        if self.state == 'B':
+            self._N = np.vstack((np.arange(self.N_max + 1),  # F1 branch
+                                 np.arange(self.N_max + 1)))  # F2 branch
+            self._J = np.vstack((np.arange(self.N_max + 1) + 1 / 2,
+                                 np.arange(self.N_max + 1) - 1 / 2))
+        self.gJ = 2 * self._J + 1
+        self.gv = 1
+        self.distribution = np.ones_like(self._J)
+        self.distribution_error = np.zeros_like(self._J)
+        self.shape = self._N.shape
+        self.size = self._N.size
+        self._set_Ge()
+        self._set_Fev()
+
+    def _set_Ge(self):
+        self.Ge = MoleculeState("N2p(B)").Ge_term(self.v_upper)
+        self.Ge_eV = self.Ge * const.WNcm2eV
+
+    def _set_Fev(self):
+        pass
 
 
 class Spectra(object):
@@ -506,6 +531,42 @@ class N2Spectra(MoleculeSpectra):
         _path = dir_path + r"\N2(C-B)\frank_condon_factor.dat"
         factor_matrix = np.loadtxt(_path)
         return factor_matrix[self.v_lower, self.v_upper]
+
+
+class N2pSpectra(MoleculeSpectra):
+    r"""
+    (N", J")    lower state
+    (N', J')    upper state
+    The first line:
+    branch :    P1,     P2,     R1,     R2,     P_Q12,  R_Q21
+        J" :    0.5,    0.5,    0.5,    0.5,    0.5,    0.5
+        N" :    0,      1,      0,      1,      1,      0
+        J' :    -0.5,   -0.5,   1.5,    1.5,    0.5,    0.5
+        N' :    -1,     0,      1,      2,      0,      1
+    """
+
+    def __init__(self, *, band, v_upper, v_lower):
+        super().__init__()
+        self.upper_state = N2pState(state='B', v_upper=v_upper)
+        self._set_coefs(band=band, v_upper=v_upper, v_lower=v_lower)
+
+    # def _set_distribution_from_upper_state_distribution(self):
+
+    def _set_coefs(self, *, band, v_upper, v_lower):
+        assert band == "B-X"
+        _sign = "{v0}-{v1}".format(v0=v_upper, v1=v_lower)
+
+        def read_coefficients_from_csv(file_name):
+            return np.genfromtxt(file_name, delimiter=',', skip_header=5)[:, 1:]
+
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        wvlg_path = dir_path + r"\N2+(B-X)\{v2v}\line_position_air.csv".format(v2v=_sign)
+        wvnm_path = dir_path + r"\N2+(B-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
+        ec_path = dir_path + r"\N2+(B-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
+        _chosen_branch = [0, 1, 4, 5, 8, 9]  # not all data from lifbase are validated.
+        self.wave_length = read_coefficients_from_csv(wvlg_path[:, _chosen_branch]) / 10
+        self.wave_number = read_coefficients_from_csv(wvnm_path[:, _chosen_branch])
+        self.emission_coefficients = read_coefficients_from_csv(ec_path[:, _chosen_branch])
 
 
 class OHSpectra(MoleculeSpectra):
