@@ -284,6 +284,17 @@ class N2pState(UppwerState):
     def _set_Fev(self):
         pass
 
+    def set_distribution(self, _distribution):
+        if len(_distribution.shape) == 1:
+            assert _distribution.shape[0] == 2 * (self.N_max + 1), _distribution.shape
+            self.distribution = _distribution.reshape((2, -1))
+        else:
+            assert _distribution.shape == (2, self.N_max + 1)
+            self.distribution = _distribution
+
+    def set_distribution_error(self, _distri_error):
+        assert _distri_error.shape[0] == 2 * (self.N_max + 1), _distri_error.shape
+        self.distribution_error = _distri_error.reshape((2, -1))
 
 class Spectra(object):
     WNcm2K = 1.4387773538277204
