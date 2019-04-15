@@ -894,6 +894,11 @@ class SpectraFunc(CheckableQTreeWidget):
                                       '2-5 394.2 nm',
                                       '3-6 389.4 nm',
                                       '4-7 385.6 nm'],
+             "N2(C-B) 434_nm dv=-4": ['0-4 434.3 nm',
+                                      '1-5 426.8 nm',
+                                      '2-6 420.0 nm',
+                                      '3-7 414.0 nm',
+                                      '4-8 409.3 nm'],
              # From
              # Lifbase. N2+(B-X) line positions Angstrom (Air)
              "N2+(B-X) 358_nm dv=1": ['1-0 357.9 nm',

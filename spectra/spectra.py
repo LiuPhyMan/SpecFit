@@ -282,7 +282,11 @@ class N2pState(UppwerState):
         self.Ge_eV = self.Ge * const.WNcm2eV
 
     def _set_Fev(self):
-        pass
+        Bv_array = np.array([2.07461, 2.05171, 2.02750, 2.00083, 1.97220, 1.9394, 1.90398])
+        Dv_array = np.array([6.33, 6.53, 6.89, 7.12, 7.79, 7.8, 9.4]) * 1e-6
+        Bv = Bv_array[self.v_upper]
+        Dv = Dv_array[self.v_upper]
+        return Bv * self._N * (self._N + 1) - Dv * self._N ** 2 * (self._N + 1) ** 2
 
     def set_distribution(self, _distribution):
         if len(_distribution.shape) == 1:
@@ -295,6 +299,7 @@ class N2pState(UppwerState):
     def set_distribution_error(self, _distri_error):
         assert _distri_error.shape[0] == 2 * (self.N_max + 1), _distri_error.shape
         self.distribution_error = _distri_error.reshape((2, -1))
+
 
 class Spectra(object):
     WNcm2K = 1.4387773538277204
