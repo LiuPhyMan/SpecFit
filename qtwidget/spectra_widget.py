@@ -18,7 +18,7 @@ from PyQt5.QtGui import QCursor, QFont
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from spectra import OHSpectra, COSpectra, N2Spectra, N2pSpectra, AddSpectra, convolute_to_voigt
 from .widgets import QPlot
-from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox
+from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox, BetterQPushButton
 from BetterQWidgets import BetterQPushButton as BetterButton
 
 _GROUPBOX_TITLE_STYLESHEET = "QGroupBox {font-weight: bold; font-family: Helvetica; font-size: " \
@@ -28,7 +28,7 @@ _LABEL_STYLESHEET = 'QLabel:disabled {color : rgb(210, 210, 210)}'
 
 _DEFAULT_FONT = QFont("Helvetica", 10)
 _DOUBLESPINBOX_FONT = QFont('Helvetica', 11)
-_LABEL_FONT = QFont("Helvetica", 12)
+_LABEL_FONT = QFont("Helvetica", 11)
 
 
 class _DefaultQGroupBox(QW.QGroupBox):
@@ -683,7 +683,9 @@ class SpectraPlot(QPlot):
         self.axes.set_ylim(-0.2, 1)
 
         self.axes.grid(linestyle=':')
-        self.sim_line, = self.axes.plot([], [], 'r-', linewidth=.8)
+        self.sim_line, = self.axes.plot([], [], 'ro-',
+                                        linewidth=.8, markersize=.5, linestyle='-.',
+                                        label='Sim')
         # self.exp_line, = self.axes.plot([], [], 'bo-', linewidth=.5, markersize=.5)
         self.exp_lines = []
         self._branch_lines = []
@@ -750,6 +752,7 @@ class SpectraPlot(QPlot):
         self.canvas_draw()
 
     def canvas_draw(self):
+        self.figure.legend()
         self.canvas.draw()
 
     def auto_scale(self):
@@ -1025,7 +1028,7 @@ class SizeInput(QW.QDialog):
         super().__init__(parent)
         # self._width_spinbox = BetterQDoubleSpinBox()
         self._width_spinbox = _DefaultQDoubleSpinBox()
-        self._height_spinbox = BetterQDoubleSpinBox()
+        self._height_spinbox = _DefaultQDoubleSpinBox()
         self._width_spinbox.setValue(init_width)
         self._height_spinbox.setValue(init_height)
         self._set_layout()
@@ -1043,6 +1046,42 @@ class SizeInput(QW.QDialog):
     def _set_slot(self):
         self._width_spinbox.valueChanged.connect(lambda: self.valueChanged.emit())
         self._height_spinbox.valueChanged.connect(lambda: self.valueChanged.emit())
+
+
+class AssumedWavelengthInput(QW.QDialog):
+    changeToAssumedWavelength = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self._start = _DefaultQDoubleSpinBox()
+        self._stop = _DefaultQDoubleSpinBox()
+        self._interval = _DefaultQDoubleSpinBox()
+        self._ok_button = BetterQPushButton("OK")
+        self._ok_button.setFixedWidth(85)
+        for _ in (self._start, self._stop):
+            _.setSuffix(" nm")
+            _.setDecimals(0)
+            _.setRange(200, 850)
+        self._start.setValue(200)
+        self._stop.setValue(850)
+        self._interval.setSuffix(" nm")
+        self._interval.setDecimals(3)
+        self._set_layout()
+        self._set_connect()
+
+    def _set_layout(self):
+        _layout = QW.QFormLayout()
+        _layout.addRow(_DefaultQLabel("Start"), self._start)
+        _layout.addRow(_DefaultQLabel("Stop"), self._stop)
+        _layout.addRow(_DefaultQLabel("Interval"), self._interval)
+        _layout.addRow("", self._ok_button)
+        self.setLayout(_layout)
+
+    def value(self):
+        return np.arange(self._start.value(), self._stop.value(), self._interval.value())
+
+    def _set_connect(self):
+        self._ok_button.clicked.connect(lambda: self.changeToAssumedWavelength.emit())
 
 
 class FitArgsInput(QW.QDialog):

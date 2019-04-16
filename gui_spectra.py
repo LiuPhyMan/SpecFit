@@ -34,7 +34,8 @@ from qtwidget import (SpectraPlot,
                       NormalizedQGroupBox,
                       SizeInput,
                       FitArgsInput,
-                      ExpLinesQTreeWidget)
+                      ExpLinesQTreeWidget,
+                      AssumedWavelengthInput)
 
 _DEFAULT_TOOLBAR_FONT = QFont("Helvetica", 10)
 
@@ -70,6 +71,7 @@ class GUISpectra(QW.QMainWindow):
         self._output.setFont(QFont("Times New Roman", 13))
         self._output.setFixedWidth(300)
         self._output.setFixedHeight(500)
+        self._assumed_wavelength = AssumedWavelengthInput()
         self._set_button_layout()
         self._set_layout()
         self._set_menubar()
@@ -80,12 +82,13 @@ class GUISpectra(QW.QMainWindow):
     def _set_dockwidget(self):
         # _default_features = QW.QDockWidget.DockWidgetClosable | QW.QDockWidget.DockWidgetFloatable
         _default_features = QW.QDockWidget.AllDockWidgetFeatures
-        _list = ['Branch', 'Resize', "Fit_Args", "Output", "Bands"]
+        _list = ['Branch', 'Resize', "Fit_Args", "Output", "Bands", "AssumedWavelength"]
         _widgets_to_dock = [self._branch_tree,
                             self._resize_input,
                             self._fit_kws_input,
                             self._output,
-                            self._spectra_tree]
+                            self._spectra_tree,
+                            self._assumed_wavelength]
         _dock_dict = dict()
         for _, _widget in zip(_list, _widgets_to_dock):
             _dock_dict[_] = QW.QDockWidget(_, self)
@@ -223,6 +226,13 @@ class GUISpectra(QW.QMainWindow):
             else:
                 self.statusBar().showMessage('Ready')
 
+        def change_to_assumed_wavelength():
+            self._spectra_plot.cls_exp_lines()
+            self._exp_data["wavelength"] = self._assumed_wavelength.value()
+            self._exp_data["intensity"] = np.zeros_like(self._exp_data["wavelength"])
+            self._wavelength_range.set_value(_min=self._exp_data["wavelength"].min(),
+                                             _max=self._exp_data["wavelength"].max())
+
         #   file read, parameters input, buttons
         self._file_read.TextChangedSignal.connect(_file_read_callback)
         self._parameters_input.valueChanged.connect(_parameters_input_callback)
@@ -237,6 +247,7 @@ class GUISpectra(QW.QMainWindow):
         #   resize, branch_tree AT dockwidgets.
         self._resize_input.valueChanged.connect(lambda: _resize_plot(self._resize_input.value()))
         self._branch_tree.stateChanged.connect(_branch_tree_callback)
+        self._assumed_wavelength.changeToAssumedWavelength.connect(change_to_assumed_wavelength)
 
     # ------------------------------------------------------------------------------------------- #
     def wave_intens_exp_in_range(self):

@@ -82,7 +82,7 @@ class MoleculeState(object):
             vib_const = np.array([2420.83, -23.851, -0.3587, -6.192e-2])
             return vib_const.dot(np.power(v + .5, [1, 2, 3, 4]))
         else:
-            return self.we * (v + .5) - self.wexe * (v + .5) ** 2
+            raise Exception(f"vib constants of {self.state} is not supported.")
 
     def Fev_term(self, v, J):
         if self.state in ('CO(B)',):
@@ -285,6 +285,12 @@ class N2pState(UppwerState):
         self.size = self._N.size
         self._set_Ge()
         self._set_Fev()
+
+    def __str__(self):
+        return f"""
+State: N2+({self.state}), v={self.v_upper}
+Shape: {self.shape}
+Ge:    {self.Ge} cm-1"""
 
     def _set_Ge(self):
         if self.state == 'B':
