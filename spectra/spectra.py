@@ -110,10 +110,13 @@ class UppwerState(object):
     def __init__(self):
         super().__init__()
         self.distribution = None
+        self.num_branch = None
         self.gv = None
         self.Ge = None
         self.gJ = None
         self.Fev = None
+        self.size = None
+        self.shape = None
 
     def energy_term(self):
         return self.Te + self.Ge + self.Fev
@@ -125,6 +128,22 @@ class UppwerState(object):
         return np.divide(self.distribution, self.gJ,
                          out=np.zeros_like(self.distribution),
                          where=self.gJ != 0)
+
+    def set_distribution(self, _distribution):
+        if len(_distribution.shape) == 1:
+            assert _distribution.size == self.size
+            self.distribution = _distribution.reshape((self.num_branch, -1))
+        else:
+            assert _distribution.shape == self.shape
+            self.distribution = _distribution
+
+    def set_distribution_error(self, _distri_error):
+        if len(_distri_error.shape) == 1:
+            assert _distri_error.size == self.size
+            self.distribution_error = _distri_error.reshape((self.num_branch, -1))
+        else:
+            assert _distri_error.shape == self.shape
+            self.distribution_error = _distri_error
 
     def set_maxwell_distribution(self, *, Tvib, Trot):
         vib_distribution = self.gv * np.exp(-self.Ge * const.WNcm2K / Tvib)
@@ -158,6 +177,7 @@ class OHState(UppwerState):
         if self.state == "A":
             self.Te = 32684.1  # from NIST in unit of cm-1
             self.Te_eV = self.Te * const.WNcm2eV
+            self.num_branch = 2
             self._N = np.vstack((np.arange(self.N_max + 1),  # F1 branch
                                  np.arange(self.N_max + 1)))  # F2 branch
             self._J = np.vstack((np.arange(self.N_max + 1) + 1 / 2,
@@ -207,18 +227,6 @@ class OHState(UppwerState):
         self.Fev = np.vstack((Fev_F1, Fev_F2))
         self.Fev_eV = self.Fev * const.WNcm2eV
 
-    def set_distribution(self, _distribution):
-        if len(_distribution.shape) == 1:
-            assert _distribution.shape[0] == 2 * (self.N_max + 1), _distribution.shape
-            self.distribution = _distribution.reshape((2, -1))
-        else:
-            assert _distribution.shape == (2, self.N_max + 1)
-            self.distribution = _distribution
-
-    def set_distribution_error(self, _distri_error):
-        assert _distri_error.shape[0] == 2 * (self.N_max + 1), _distri_error.shape
-        self.distribution_error = _distri_error.reshape((2, -1))
-
     def plot_distribution(self, *, branch="both", new_figure=True):
         if new_figure is True:
             plt.figure()
@@ -264,6 +272,7 @@ class N2pState(UppwerState):
         self.v_upper = v_upper
         self.N_max = 86
         if self.state == 'B':
+            self.num_branch = 2
             self._N = np.vstack((np.arange(self.N_max + 1),  # F1 branch
                                  np.arange(self.N_max + 1)))  # F2 branch
             self._J = np.vstack((np.arange(self.N_max + 1) + 1 / 2,
@@ -278,27 +287,19 @@ class N2pState(UppwerState):
         self._set_Fev()
 
     def _set_Ge(self):
-        self.Ge = MoleculeState("N2p(B)").Ge_term(self.v_upper)
-        self.Ge_eV = self.Ge * const.WNcm2eV
+        if self.state == 'B':
+            self.Ge = MoleculeState("N2p(B)").Ge_term(self.v_upper)
+            self.Ge_eV = self.Ge * const.WNcm2eV
+        else:
+            raise Exception(f"The state {self.state} is not support")
 
     def _set_Fev(self):
+        # The spin orbit split is ignored.
         Bv_array = np.array([2.07461, 2.05171, 2.02750, 2.00083, 1.97220, 1.9394, 1.90398])
         Dv_array = np.array([6.33, 6.53, 6.89, 7.12, 7.79, 7.8, 9.4]) * 1e-6
         Bv = Bv_array[self.v_upper]
         Dv = Dv_array[self.v_upper]
-        return Bv * self._N * (self._N + 1) - Dv * self._N ** 2 * (self._N + 1) ** 2
-
-    def set_distribution(self, _distribution):
-        if len(_distribution.shape) == 1:
-            assert _distribution.shape[0] == 2 * (self.N_max + 1), _distribution.shape
-            self.distribution = _distribution.reshape((2, -1))
-        else:
-            assert _distribution.shape == (2, self.N_max + 1)
-            self.distribution = _distribution
-
-    def set_distribution_error(self, _distri_error):
-        assert _distri_error.shape[0] == 2 * (self.N_max + 1), _distri_error.shape
-        self.distribution_error = _distri_error.reshape((2, -1))
+        self.Fev = Bv * self._N * (self._N + 1) - Dv * self._N ** 2 * (self._N + 1) ** 2
 
 
 class Spectra(object):
@@ -453,6 +454,31 @@ class MoleculeSpectra(Spectra):
         self.Ge_upper = None
         self.Fev_upper = None
 
+    def _set_distribution_from_upper_state_distribution(self):
+        pass
+
+    def upper_state_dataframe(self):
+        return self.upper_state._dataFrame()
+
+    def upper_state_ravel_distribution(self):
+        return self.upper_state.ravel_distribution()
+
+    def set_upper_state_distribution(self, _distribution):
+        self.upper_state.set_distribution(_distribution)
+        self._set_distribution_from_upper_state_distribution()
+
+    def set_upper_state_distribution_error(self, _distri_error):
+        self.upper_state.set_distribution_error(_distri_error)
+
+    def set_maxwell_upper_state_distribution(self, *, Tvib, Trot):
+        self.upper_state.set_maxwell_distribution(Tvib=Tvib, Trot=Trot)
+        self._set_distribution_from_upper_state_distribution()
+
+    def set_double_maxwell_upper_state_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
+        self.upper_state.set_double_maxwell_distribution(Tvib=Tvib, Trot_cold=Trot_cold,
+                                                         Trot_hot=Trot_hot, hot_ratio=hot_ratio)
+        self._set_distribution_from_upper_state_distribution()
+
     # def set_distribution_by_upper_state(self):
     #     pass
 
@@ -580,9 +606,18 @@ class N2pSpectra(MoleculeSpectra):
         wvnm_path = dir_path + r"\N2+(B-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
         ec_path = dir_path + r"\N2+(B-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
         _chosen_branch = [0, 1, 4, 5, 8, 9]  # not all data from lifbase are validated.
-        self.wave_length = read_coefficients_from_csv(wvlg_path[:, _chosen_branch]) / 10
-        self.wave_number = read_coefficients_from_csv(wvnm_path[:, _chosen_branch])
-        self.emission_coefficients = read_coefficients_from_csv(ec_path[:, _chosen_branch])
+        self.wave_length = read_coefficients_from_csv(wvlg_path)[:, _chosen_branch] / 10
+        self.wave_number = read_coefficients_from_csv(wvnm_path)[:, _chosen_branch]
+        self.emission_coefficients = read_coefficients_from_csv(ec_path)[:, _chosen_branch]
+
+    def _set_distribution_from_upper_state_distribution(self):
+        self.distribution = np.zeros((85, 6))
+        self.distribution[1:, 0] = self.upper_state.distribution[0, 0:84]  # P1
+        self.distribution[1:, 1] = self.upper_state.distribution[1, 1:85]  # P2
+        self.distribution[0:, 2] = self.upper_state.distribution[0, 1:86]  # R1
+        self.distribution[0:, 3] = self.upper_state.distribution[1, 2:87]  # R2
+        self.distribution[0:, 4] = self.upper_state.distribution[0, 0:85]  # P_Q12
+        self.distribution[0:, 5] = self.upper_state.distribution[1, 1:86]  # R_Q21
 
 
 class OHSpectra(MoleculeSpectra):
@@ -620,45 +655,6 @@ class OHSpectra(MoleculeSpectra):
         branch_index = [i for i, j in enumerate(self._BRANCH_SEQ) if j == branch][0]
         return self.wave_length[:, branch_index], self.intensity[:, branch_index]
 
-    def upper_state_dataframe(self):
-        return self.upper_state._dataFrame()
-
-    def upper_state_ravel_distribution(self):
-        return self.upper_state.ravel_distribution()
-
-    def set_upper_state_distribution(self, _distribution):
-        self.upper_state.set_distribution(_distribution)
-        self._set_distribution_from_upper_state_distribution()
-
-    def set_upper_state_distribution_error(self, _distri_error):
-        self.upper_state.set_distribution_error(_distri_error)
-
-    def set_maxwell_upper_state_distribution(self, *, Tvib, Trot):
-        self.upper_state.set_maxwell_distribution(Tvib=Tvib, Trot=Trot)
-        self._set_distribution_from_upper_state_distribution()
-
-    def set_double_maxwell_upper_state_distribution(self, *, Tvib, Trot_cold, Trot_hot, hot_ratio):
-        self.upper_state.set_double_maxwell_distribution(Tvib=Tvib, Trot_cold=Trot_cold,
-                                                         Trot_hot=Trot_hot, hot_ratio=hot_ratio)
-        self._set_distribution_from_upper_state_distribution()
-
-    def _set_distribution_from_upper_state_distribution(self):
-        # self.distribution = np.zeros((40, 12))
-        N_max = self.upper_state.N_max
-        self.distribution = np.zeros((N_max - 1, 12))
-        self.distribution[:, 0] = self.upper_state.distribution[0, 0:N_max - 1]  # P1
-        self.distribution[1:, 1] = self.upper_state.distribution[1, 1:N_max - 1]  # P2
-        self.distribution[:, 2] = self.upper_state.distribution[0, 1:N_max]  # Q1
-        self.distribution[:, 3] = self.upper_state.distribution[1, 1:N_max]  # Q2
-        self.distribution[:, 4] = self.upper_state.distribution[0, 2:N_max + 1]  # R1
-        self.distribution[:, 5] = self.upper_state.distribution[1, 2:N_max + 1]  # R2
-        self.distribution[1:, 6] = self.upper_state.distribution[0, 0:N_max - 2]  # O12
-        self.distribution[:, 7] = self.upper_state.distribution[0, 1:N_max]  # Q12
-        self.distribution[:, 8] = self.upper_state.distribution[0, 0:N_max - 1]  # P12
-        self.distribution[:, 9] = self.upper_state.distribution[1, 2:N_max + 1]  # R21
-        self.distribution[:, 10] = self.upper_state.distribution[1, 1:N_max]  # Q21
-        self.distribution[:-1, 11] = self.upper_state.distribution[1, 3:]  # S21
-
     def _set_coefs(self, *, band, v_upper, v_lower):
         assert band == 'A-X'
         # assert (v_upper, v_lower) in ((0, 0), (1, 0), (1, 1))
@@ -675,7 +671,22 @@ class OHSpectra(MoleculeSpectra):
         self.wave_number = read_coefficients_from_csv(wvnm_path)
         self.emission_coefficients = read_coefficients_from_csv(ec_path)
         # self._set_Ge(v_upper)
-        # self._set_Fev(v_upper)
+
+    def _set_distribution_from_upper_state_distribution(self):
+        N_max = self.upper_state.N_max
+        self.distribution = np.zeros((N_max - 1, 12))
+        self.distribution[:, 0] = self.upper_state.distribution[0, 0:N_max - 1]  # P1
+        self.distribution[1:, 1] = self.upper_state.distribution[1, 1:N_max - 1]  # P2
+        self.distribution[:, 2] = self.upper_state.distribution[0, 1:N_max]  # Q1
+        self.distribution[:, 3] = self.upper_state.distribution[1, 1:N_max]  # Q2
+        self.distribution[:, 4] = self.upper_state.distribution[0, 2:N_max + 1]  # R1
+        self.distribution[:, 5] = self.upper_state.distribution[1, 2:N_max + 1]  # R2
+        self.distribution[1:, 6] = self.upper_state.distribution[0, 0:N_max - 2]  # O12
+        self.distribution[:, 7] = self.upper_state.distribution[0, 1:N_max]  # Q12
+        self.distribution[:, 8] = self.upper_state.distribution[0, 0:N_max - 1]  # P12
+        self.distribution[:, 9] = self.upper_state.distribution[1, 2:N_max + 1]  # R21
+        self.distribution[:, 10] = self.upper_state.distribution[1, 1:N_max]  # Q21
+        self.distribution[:-1, 11] = self.upper_state.distribution[1, 3:]  # S21
 
 
 class COSpectra(MoleculeSpectra):

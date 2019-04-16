@@ -16,7 +16,7 @@ from matplotlib import ticker
 from PyQt5 import QtWidgets as QW
 from PyQt5.QtGui import QCursor, QFont
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from spectra import OHSpectra, COSpectra, N2Spectra, AddSpectra, convolute_to_voigt
+from spectra import OHSpectra, COSpectra, N2Spectra, N2pSpectra, AddSpectra, convolute_to_voigt
 from .widgets import QPlot
 from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox
 from BetterQWidgets import BetterQPushButton as BetterButton
@@ -852,82 +852,85 @@ class CheckableQTreeWidget(QW.QTreeWidget):
 
 
 class SpectraFunc(CheckableQTreeWidget):
-    _DICT = {'OH(A-X) 309_nm dv=0': ['0-0 308.9 nm',
-                                     '1-1 314.5 nm',
-                                     '2-2 320.7 nm'],
-             'OH(A-X) 283_nm dv=1': ['1-0 282.8 nm',
-                                     '2-1 289.1 nm',
-                                     '3-2 296.1 nm'],# OH from Lifbase.
-             'CO(B-A)': ['0-0 451.1 nm',
-                         '0-1 483.5 nm',
-                         '0-2 519.8 nm',
-                         '0-3 561.0 nm',
-                         '0-4 608.0 nm',
-                         '0-5 662.0 nm',
-                         '1-0 412.4 nm',
-                         '1-1 439.3 nm',
-                         '1-2 469.7 nm'],
-             # From
-             # Ref: Lofthus, A. and P. H. Krupenie (1977). "The spectrum of molecular nitrogen."
-             #      Journal of Physical and Chemical Reference Data 6(1): 113-307.
-             "N2(C-B) 316_nm dv=1 ": ['1-0 315.8 nm',
-                                      '2-1 313.5 nm',
-                                      '3-2 311.5 nm',
-                                      '4-3 310.2 nm'],
-             'N2(C-B) 337_nm dv=0': ['0-0 337.0 nm',
-                                     '1-1 333.8 nm',
-                                     '2-2 330.9 nm',
-                                     '3-3 328.4 nm',
-                                     '4-4 326.6 nm'],
-             'N2(C-B) 358_nm dv=-1': ['0-1 357.6 nm',
-                                      '1-2 353.6 nm',
-                                      '2-3 349.9 nm',
-                                      '3-4 346.8 nm',
-                                      '4-5 344.5 nm'],
-             "N2(C-B) 380_nm dv=-2": ['0-2 380.4 nm',
-                                      '1-3 375.4 nm',
-                                      '2-4 370.9 nm',
-                                      '3-5 367.1 nm',
-                                      '4-6 364.1 nm'],
-             "N2(C-B) 406_nm dv=-3": ['0-3 405.8 nm',
-                                      '1-4 399.7 nm',
-                                      '2-5 394.2 nm',
-                                      '3-6 389.4 nm',
-                                      '4-7 385.6 nm'],
-             "N2(C-B) 434_nm dv=-4": ['0-4 434.3 nm',
-                                      '1-5 426.8 nm',
-                                      '2-6 420.0 nm',
-                                      '3-7 414.0 nm',
-                                      '4-8 409.3 nm'],
-             # From
-             # Lifbase. N2+(B-X) line positions Angstrom (Air)
-             "N2+(B-X) 358_nm dv=1": ['1-0 357.9 nm',
-                                      '2-1 356.1 nm',
-                                      '3-2 354.6 nm',
-                                      '4-3 353.5 nm',
-                                      '5-4 352.9 nm',
-                                      '6-5 352.9 nm'],
-             "N2+(B-X) 391_nm dv=0": ['0-0 391.1 nm',
-                                      '1-1 388.1 nm',
-                                      '2-2 385.5 nm',
-                                      '3-3 383.2 nm',
-                                      '4-4 381.5 nm',
-                                      '5-5 380.3 nm',
-                                      '6-6 379.8 nm'],
-             "N2+(B-X) 427_nm dv=-1": ['0-1 427.5 nm',
-                                       '1-2 423.3 nm',
-                                       '2-3 419.6 nm',
-                                       '3-4 416.4 nm',
-                                       '4-5 413.7 nm',
-                                       '5-6 411.8 nm',
-                                       '6-7 410.7 nm'],
-             "N2+(B-X) 471_nm dv=-2": ['0-2 470.6 nm',
-                                       '1-3 464.9 nm',
-                                       '2-4 459.7 nm',
-                                       '3-5 455.1 nm',
-                                       '4-6 451.3 nm',
-                                       '5-7 448.3 nm',
-                                       '6-8 446.3 nm']}
+    _DICT = {
+        # From
+        # LifBase database.
+        'OH(A-X) 309_nm dv=0': ['0-0 308.9 nm',
+                                '1-1 314.5 nm',
+                                '2-2 320.7 nm'],
+        'OH(A-X) 283_nm dv=1': ['1-0 282.8 nm',
+                                '2-1 289.1 nm',
+                                '3-2 296.1 nm'],
+        'CO(B-A)': ['0-0 451.1 nm',
+                    '0-1 483.5 nm',
+                    '0-2 519.8 nm',
+                    '0-3 561.0 nm',
+                    '0-4 608.0 nm',
+                    '0-5 662.0 nm',
+                    '1-0 412.4 nm',
+                    '1-1 439.3 nm',
+                    '1-2 469.7 nm'],
+        # From
+        # Ref: Lofthus, A. and P. H. Krupenie (1977). "The spectrum of molecular nitrogen."
+        #      Journal of Physical and Chemical Reference Data 6(1): 113-307.
+        "N2(C-B) 316_nm dv=1 ": ['1-0 315.8 nm',
+                                 '2-1 313.5 nm',
+                                 '3-2 311.5 nm',
+                                 '4-3 310.2 nm'],
+        'N2(C-B) 337_nm dv=0': ['0-0 337.0 nm',
+                                '1-1 333.8 nm',
+                                '2-2 330.9 nm',
+                                '3-3 328.4 nm',
+                                '4-4 326.6 nm'],
+        'N2(C-B) 358_nm dv=-1': ['0-1 357.6 nm',
+                                 '1-2 353.6 nm',
+                                 '2-3 349.9 nm',
+                                 '3-4 346.8 nm',
+                                 '4-5 344.5 nm'],
+        "N2(C-B) 380_nm dv=-2": ['0-2 380.4 nm',
+                                 '1-3 375.4 nm',
+                                 '2-4 370.9 nm',
+                                 '3-5 367.1 nm',
+                                 '4-6 364.1 nm'],
+        "N2(C-B) 406_nm dv=-3": ['0-3 405.8 nm',
+                                 '1-4 399.7 nm',
+                                 '2-5 394.2 nm',
+                                 '3-6 389.4 nm',
+                                 '4-7 385.6 nm'],
+        "N2(C-B) 434_nm dv=-4": ['0-4 434.3 nm',
+                                 '1-5 426.8 nm',
+                                 '2-6 420.0 nm',
+                                 '3-7 414.0 nm',
+                                 '4-8 409.3 nm'],
+        # From
+        # Lifbase. N2+(B-X) line positions Angstrom (Air)
+        "N2+(B-X) 358_nm dv=1": ['1-0 357.9 nm',
+                                 '2-1 356.1 nm',
+                                 '3-2 354.6 nm',
+                                 '4-3 353.5 nm',
+                                 '5-4 352.9 nm',
+                                 '6-5 352.9 nm'],
+        "N2+(B-X) 391_nm dv=0": ['0-0 391.1 nm',
+                                 '1-1 388.1 nm',
+                                 '2-2 385.5 nm',
+                                 '3-3 383.2 nm',
+                                 '4-4 381.5 nm',
+                                 '5-5 380.3 nm',
+                                 '6-6 379.8 nm'],
+        "N2+(B-X) 427_nm dv=-1": ['0-1 427.5 nm',
+                                  '1-2 423.3 nm',
+                                  '2-3 419.6 nm',
+                                  '3-4 416.4 nm',
+                                  '4-5 413.7 nm',
+                                  '5-6 411.8 nm',
+                                  '6-7 410.7 nm'],
+        "N2+(B-X) 471_nm dv=-2": ['0-2 470.6 nm',
+                                  '1-3 464.9 nm',
+                                  '2-4 459.7 nm',
+                                  '3-5 455.1 nm',
+                                  '4-6 451.3 nm',
+                                  '5-7 448.3 nm',
+                                  '6-8 446.3 nm']}
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -944,9 +947,10 @@ class SpectraFunc(CheckableQTreeWidget):
         def get_spectra(_spectra):
             temp = re.fullmatch(r"([^()]+)\(([^()]+)\)_(\d+)-(\d+)", _spectra).groups()
             molecule, band, v_upper_str, v_lower_str = temp
-            band_dict = dict(OH=OHSpectra,
-                             CO=COSpectra,
-                             N2=N2Spectra)
+            band_dict = {'OH': OHSpectra,
+                         'CO': COSpectra,
+                         'N2': N2Spectra,
+                         'N2+': N2pSpectra}
             func = band_dict[molecule]
             return func(band=band, v_upper=int(v_upper_str), v_lower=int(v_lower_str))
 
