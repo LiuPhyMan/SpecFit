@@ -264,6 +264,34 @@ class OHState(UppwerState):
         plt.legend()
 
 
+class N2State(UppwerState):
+
+    def __init__(self, *, state, v_upper):
+        super().__init__()
+        self.state = state
+        self.v_upper = v_upper
+        if self.state == "C":
+            self.num_branch = 3
+            # self._J = np.vstack((np.arange(self.N_max + 1)
+            #                      np.arange(self.N_max + 1))()
+        self.gJ = 2 * self._J + 1
+        self.gv = 1
+        self.distribution = np.ones_like(self._J)
+        self.distribution_error = np.zeros_like(self._J)
+        self.shape = self._J.shape
+        self.size = self._J.size
+        self._set_Ge()
+        self._set_Fev()
+
+    def _set_Ge(self):
+        Ge_array = [1016.70635, 3011.108325, 4951.9, 6825.931175, 8607.21165]
+        self.Ge = Ge_array[self.v_upper]
+        self.Ge_eV = self.Ge * const.WNcm2eV
+
+    def _set_Fev(self):
+        pass
+
+
 class N2pState(UppwerState):
 
     def __init__(self, *, state, v_upper):
