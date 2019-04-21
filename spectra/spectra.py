@@ -272,8 +272,7 @@ class N2State(UppwerState):
         self.v_upper = v_upper
         if self.state == "C":
             self.num_branch = 3
-            # self._J = np.vstack((np.arange(self.N_max + 1)
-            #                      np.arange(self.N_max + 1))()
+            self._J = np.vstack((np.arange(171), np.arange(171), np.arange(171)))
         self.gJ = 2 * self._J + 1
         self.gv = 1
         self.distribution = np.ones_like(self._J)
@@ -283,13 +282,22 @@ class N2State(UppwerState):
         self._set_Ge()
         self._set_Fev()
 
+    def __str__(self):
+        return f"""
+State: N2({self.state}), v={self.v_upper}
+Shape: {self.shape}
+Ge:    {self.Ge} cm-1"""
+
     def _set_Ge(self):
         Ge_array = [1016.70635, 3011.108325, 4951.9, 6825.931175, 8607.21165]
         self.Ge = Ge_array[self.v_upper]
         self.Ge_eV = self.Ge * const.WNcm2eV
 
     def _set_Fev(self):
-        pass
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        _path = dir_path + r"\N2(C-B)\Fev_{v}.dat".format(v=self.v_upper)
+        self.Fev = np.loadtxt(_path).transpose()
+        self.Fev_eV = self.Fev * const.WNcm2eV
 
 
 class N2pState(UppwerState):
@@ -557,6 +565,8 @@ class N2Spectra(MoleculeSpectra):
 
     def __init__(self, *, band, v_upper, v_lower):
         super().__init__()
+        if band == 'C-B':
+            self.upper_state = N2State(state='C', v_upper=v_upper)
         self.band = band
         self.v_upper = v_upper
         self.v_lower = v_lower
@@ -566,33 +576,27 @@ class N2Spectra(MoleculeSpectra):
         r""" wavelength, wavenumber, emission_coefs"""
         dir_path = os.path.dirname(os.path.realpath(__file__))
         assert self.band == 'C-B'
-        wv_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavelength_vac.dat".format(v0=self.v_upper,
-                                                                             v1=self.v_lower)
-        self.wave_length = np.loadtxt(wv_path)
-        self.wave_number = np.divide(1e7, self.wave_length,
-                                     out=np.zeros_like(self.wave_length),
-                                     where=(self.wave_length > 1))
-
-        self.J_upper = np.tile(np.arange(0, 171), (9, 1)).transpose()
-        self.gJ_upper = 2 * self.J_upper + 1
-        self._set_Ge()
-        self._set_Fev()
+        wv_lg_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavelength_vac.dat".format(v0=self.v_upper,
+                                                                                v1=self.v_lower)
+        wv_nm_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavelength_vac.dat".format(v0=self.v_upper,
+                                                                                v1=self.v_lower)
+        self.wave_length = self.wavelength_vac2air(np.loadtxt(wv_lg_path))
+        self.wave_number = np.loadtxt(wv_nm_path)
         self._set_emission_coefficients()
 
-    def _set_Ge(self):
-        assert self.band == "C-B"
-        self.gv_upper = np.ones_like(self.wave_length)
-        self.Ge_upper = np.ones_like(self.wave_length) * MoleculeState("N2(C)").Ge_term(
-            self.v_upper)
-
-    def _set_Fev(self):
-        dir_path = os.path.dirname(os.path.realpath(__file__))
-        _path = dir_path + r"\N2(C-B)\Fev_{v}.dat".format(v=self.v_upper)
-        self.Fev_upper = np.loadtxt(_path)
-
     def _set_emission_coefficients(self):
+        gJ_upper = 2 * np.tile(np.arange(171), (27, 1)).transpose() + 1
         sjj = self.honl_london_factor()
-        self.emission_coefficients = self.wave_number ** 3 * self.frank_condon_factor() * sjj / self.gJ_upper
+        fc_factor = self.frank_condon_factor()
+        self.emission_coefficients = self.wave_number ** 3 * fc_factor * sjj / gJ_upper
+
+    def _set_distribution_from_upper_state_distribution(self):
+        self.distribution = np.zeros((171, 27))
+        branch_list = [0, 0, 0, 1, 1, 1, 2, 2, 2,
+                       0, 0, 0, 1, 1, 1, 2, 2, 2,
+                       0, 0, 0, 1, 1, 1, 2, 2, 2]
+        for i, _branch in enumerate(branch_list):
+            self.distribution[:, i] = self.upper_state.distribution[_branch]
 
     def honl_london_factor(self):
         if self.band == "C-B":

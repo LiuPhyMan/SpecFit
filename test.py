@@ -10,6 +10,5 @@ Created on  21:44 2019/3/17
 """
 
 from spectra import N2Spectra
-for i in range(5):
-    N2 = N2Spectra(band='C-B', v_upper=i, v_lower=0)
-    print(N2.Ge_upper[0,0])
+
+N2 = N2Spectra(band='C-B', v_upper=0, v_lower=0)
