@@ -266,13 +266,16 @@ class OHState(UppwerState):
 
 class N2State(UppwerState):
 
-    def __init__(self, *, state, v_upper):
+    def __init__(self, *, state, v_upper, J_max=90):
         super().__init__()
         self.state = state
+        self.J_max = J_max
         self.v_upper = v_upper
         if self.state == "C":
             self.num_branch = 3
-            self._J = np.vstack((np.arange(171), np.arange(171), np.arange(171)))
+            self._J = np.vstack((np.arange(self.J_max),
+                                 np.arange(self.J_max),
+                                 np.arange(self.J_max)))
         self.gJ = 2 * self._J + 1
         self.gv = 1
         self.distribution = np.ones_like(self._J)
@@ -296,7 +299,7 @@ Ge:    {self.Ge} cm-1"""
     def _set_Fev(self):
         dir_path = os.path.dirname(os.path.realpath(__file__))
         _path = dir_path + r"\N2(C-B)\Fev_{v}.dat".format(v=self.v_upper)
-        self.Fev = np.loadtxt(_path).transpose()
+        self.Fev = np.loadtxt(_path).transpose()[:, :self.J_max]
         self.Fev_eV = self.Fev * const.WNcm2eV
 
 
@@ -563,13 +566,14 @@ class N2Spectra(MoleculeSpectra):
 
     """
 
-    def __init__(self, *, band, v_upper, v_lower):
+    def __init__(self, *, band, v_upper, v_lower, J_max=90):
         super().__init__()
         if band == 'C-B':
             self.upper_state = N2State(state='C', v_upper=v_upper)
         self.band = band
         self.v_upper = v_upper
         self.v_lower = v_lower
+        self.J_max = J_max
         self._set_coefs()
 
     def _set_coefs(self):
@@ -578,20 +582,20 @@ class N2Spectra(MoleculeSpectra):
         assert self.band == 'C-B'
         wv_lg_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavelength_vac.dat".format(v0=self.v_upper,
                                                                                 v1=self.v_lower)
-        wv_nm_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavelength_vac.dat".format(v0=self.v_upper,
-                                                                                v1=self.v_lower)
-        self.wave_length = self.wavelength_vac2air(np.loadtxt(wv_lg_path))
-        self.wave_number = np.loadtxt(wv_nm_path)
+        wv_nm_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavenumber.dat".format(v0=self.v_upper,
+                                                                            v1=self.v_lower)
+        self.wave_length = self.wavelength_vac2air(np.loadtxt(wv_lg_path))[:self.J_max, :]
+        self.wave_number = np.loadtxt(wv_nm_path)[:self.J_max, :]
         self._set_emission_coefficients()
 
     def _set_emission_coefficients(self):
-        gJ_upper = 2 * np.tile(np.arange(171), (27, 1)).transpose() + 1
-        sjj = self.honl_london_factor()
+        gJ_upper = 2 * np.tile(np.arange(self.J_max), (27, 1)).transpose() + 1
+        sjj = self.honl_london_factor()[:self.J_max, :]
         fc_factor = self.frank_condon_factor()
         self.emission_coefficients = self.wave_number ** 3 * fc_factor * sjj / gJ_upper
 
     def _set_distribution_from_upper_state_distribution(self):
-        self.distribution = np.zeros((171, 27))
+        self.distribution = np.zeros((self.J_max, 27))
         branch_list = [0, 0, 0, 1, 1, 1, 2, 2, 2,
                        0, 0, 0, 1, 1, 1, 2, 2, 2,
                        0, 0, 0, 1, 1, 1, 2, 2, 2]

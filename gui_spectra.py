@@ -501,12 +501,13 @@ class GUISpectra(QW.QMainWindow):
     def simulated_result_str(self):
         def get_print_str(param, _format):
             if param.name.startswith('fwhm'):
+                print(param.value)
                 if param.vary:
                     return '\n{v:{frmt}} +/- {err:{frmt}} pm'.format(v=param.value * 1e3,
                                                                      err=param.stderr * 1e3,
                                                                      frmt=_format)
                 else:
-                    return '\n{v:{frmt}} [fixed]'.format(value=param.value,
+                    return '\n{v:{frmt}} [fixed]'.format(v=param.value,
                                                          frmt=_format)
             if param.vary:
                 return '\n{v:{frmt}} +/- {err:{frmt}}'.format(v=param.value, err=param.stderr,

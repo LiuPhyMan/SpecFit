@@ -188,8 +188,10 @@ class FWHMQGroupBox(_DefaultQGroupBox):
         self.fwhm_total = _DefaultQLabel()
         self.fwhm_g_part = _DefaultQDoubleSpinBox()
         self.fwhm_l_part = _DefaultQDoubleSpinBox()
+        self.lorentz_percent = _DefaultQLabel()
         self._label = dict(Gauss=_DefaultQLabel("<b><i>w</b></i><sub>G</sub>"),
-                           Loren=_DefaultQLabel("<b><i>w</b></i><sub>L</sub>"))
+                           Loren=_DefaultQLabel("<b><i>w</b></i><sub>L</sub>"),
+                           L_part=_DefaultQLabel("<b><i>L</b></i><sub>part</sub>"))
         self.line_shape_combobox.addItem('Gaussian')
         self.line_shape_combobox.addItem('Lorentzian')
         self.line_shape_combobox.addItem('Voigt')
@@ -229,6 +231,9 @@ class FWHMQGroupBox(_DefaultQGroupBox):
         font = QFont("Helvetica", 13)
         font.setUnderline(True)
         self.fwhm_total.setFont(font)
+        font.setPointSize(11)
+        font.setItalic(True)
+        self.lorentz_percent.setFont(font)
 
         for _fwhm in (self.fwhm_g_part, self.fwhm_l_part):
             _fwhm.setSuffix(" pm")
@@ -243,6 +248,7 @@ class FWHMQGroupBox(_DefaultQGroupBox):
         _layout.addRow(self.fwhm_total)
         _layout.addRow(self._label["Gauss"], self.fwhm_g_part)
         _layout.addRow(self._label["Loren"], self.fwhm_l_part)
+        _layout.addRow(self._label["L_part"], self.lorentz_percent)
         _layout.addRow("", self.line_shape_combobox)
         self.setLayout(_layout)
 
@@ -251,6 +257,7 @@ class FWHMQGroupBox(_DefaultQGroupBox):
         self.fwhm_g_part.valueChanged.connect(lambda: self.valueChanged.emit())
         self.fwhm_l_part.valueChanged.connect(lambda: self.valueChanged.emit())
         self.valueChanged.connect(self.set_fwhm_total)
+        self.valueChanged.connect(self.set_lorentz_percent)
         self.line_shape_combobox_callback()
 
     def line_shape_combobox_callback(self):
@@ -278,6 +285,16 @@ class FWHMQGroupBox(_DefaultQGroupBox):
             _value = convolute_to_voigt(fwhm_G=self.value()['fwhm_g'],
                                         fwhm_L=self.value()['fwhm_l'])
         self.fwhm_total.setText('<i><b>{i:.2f}</b><i> pm'.format(i=_value * 1e3))
+
+    def set_lorentz_percent(self):
+        if self.para_form() == "Gaussian":
+            self.lorentz_percent.setText("{v:5.1f} %".format(v=0))
+        elif self.para_form() == "Lorentzian":
+            self.lorentz_percent.setText("{v:5.1f} %".format(v=100))
+        elif self.para_form() == "Voigt":
+            _value = self.value()['fwhm_g'] + self.value()['fwhm_l']
+            _percent = self.value()['fwhm_l'] / _value * 100
+            self.lorentz_percent.setText("{v:5.1f} %".format(v=_percent))
 
 
 class XOffsetQGroupBox(_DefaultQGroupBox):
