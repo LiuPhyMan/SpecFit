@@ -703,18 +703,20 @@ class SpectraPlot(QPlot):
         self.sim_line, = self.axes.plot([], [], 'ro-',
                                         linewidth=.8, markersize=.5, linestyle='-.',
                                         label='Sim')
-        # self.exp_line, = self.axes.plot([], [], 'bo-', linewidth=.5, markersize=.5)
-        self.exp_lines = []
+        self.exp_line, = self.axes.plot([], [], 'bo-',
+                                        linewidth=.5, markersize=.5,
+                                        label="Exp")
+        # self.exp_lines = []
         self._branch_lines = []
         self._texts = []
         self.figure.tight_layout()
-        self.figure.canvas.mpl_connect('button_press_event', self.click_callback)
+        # self.figure.canvas.mpl_connect('button_press_event', self.click_callback)
         self.temp_data = 0
 
-    def click_callback(self, event):
-        # print('{x:.2f} {y:.2f}'.format(x=event.xdata, y=event.ydata))
-        print('{y0:.2f} {y1:.2f}'.format(y0=self.temp_data, y1=event.ydata))
-        self.temp_data = event.ydata
+    # def click_callback(self, event):
+    #     # print('{x:.2f} {y:.2f}'.format(x=event.xdata, y=event.ydata))
+    #     print('{y0:.2f} {y1:.2f}'.format(y0=self.temp_data, y1=event.ydata))
+    #     self.temp_data = event.ydata
 
     def set_sim_line(self, *, xdata, ydata):
         self.sim_line.set_data(xdata, ydata)
@@ -724,24 +726,28 @@ class SpectraPlot(QPlot):
         self.sim_line.set_data([], [])
         self.canvas_draw()
 
-    # def set_exp_line(self, *, xdata, ydata):
-    #     self.exp_line.set_data(xdata, ydata)
+    def set_exp_line(self, *, xdata, ydata):
+        self.exp_line.set_data(xdata, ydata)
+        self.canvas_draw()
+
+    def cls_exp_line(self):
+        self.exp_line.set_data([], [])
+        self.canvas_draw()
+
+    # def add_exp_line(self, *, xdata, ydata):
+    #     self.exp_lines.append(self.axes.plot(xdata, ydata, 'bo-', linewidth=.5, markersize=.5)[0])
     #     self.canvas_draw()
-    #     self.auto_scale()
-    def add_exp_line(self, *, xdata, ydata):
-        self.exp_lines.append(self.axes.plot(xdata, ydata, 'bo-', linewidth=.5, markersize=.5)[0])
-        self.canvas_draw()
 
-    def hide_exp_line(self, *, index):
-        self.exp_lines[index].set_visible(False)
-        self.canvas_draw()
+    # def hide_exp_line(self, *, index):
+    #     self.exp_lines[index].set_visible(False)
+    #     self.canvas_draw()
 
-    def cls_exp_lines(self):
-        for _ln in reversed(self.exp_lines):
-            self.axes.lines.remove(_ln)
-            del _ln
-        self.exp_lines = []
-        self.canvas_draw()
+    # def cls_exp_lines(self):
+    #     for _ln in reversed(self.exp_lines):
+    #         self.axes.lines.remove(_ln)
+    #         del _ln
+    #     self.exp_lines = []
+    #     self.canvas_draw()
 
     def plot_line_intensity(self, *, xdata, ydata, branch='', shown_index=(), shown_J=()):
         ln, = self.axes.plot(xdata, ydata, color='magenta', linestyle='-', linewidth=1,

@@ -129,15 +129,16 @@ class GUISpectra(QW.QMainWindow):
         self.button_layout = QW.QVBoxLayout()
         sub_layout = QW.QGridLayout()
         self._plot_buttons = dict()
-        self._plot_buttons['clear_sim'] = _get_pushbutton("ClearSim")
-        self._plot_buttons['clear_exp'] = _get_pushbutton('ClearExp')
-        self._plot_buttons['add_sim'] = _get_pushbutton("AddSim")
         self._plot_buttons['auto_scale'] = _get_pushbutton("&AutoScale")
+        self._plot_buttons['synthetic'] = _get_pushbutton("Synthetic")
+        self._plot_buttons['clear_exp'] = _get_pushbutton('ClearExp')
+        self._plot_buttons['clear_sim'] = _get_pushbutton("ClearSim")
         self._plot_buttons['fit'] = _get_pushbutton('&Fit')
         self._plot_buttons['FitDistrbtn'] = _get_pushbutton('FitDistrbtn')
         sub_layout.addWidget(self._plot_buttons['auto_scale'], 0, 0)
-        sub_layout.addWidget(self._plot_buttons['clear_sim'], 1, 0)
+        sub_layout.addWidget(self._plot_buttons['synthetic'], 1, 0)
         sub_layout.addWidget(self._plot_buttons['clear_exp'], 2, 0)
+        sub_layout.addWidget(self._plot_buttons['clear_sim'], 3, 0)
         sub_layout.addWidget(self._plot_buttons['fit'], 0, 1)
         sub_layout.addWidget(self._plot_buttons['FitDistrbtn'], 1, 1)
         self.button_layout.addLayout(sub_layout)
@@ -193,7 +194,7 @@ class GUISpectra(QW.QMainWindow):
                 self._normalized_groupbox.set_value(_factor)
                 self._normalized_factor = _factor
 
-            self._spectra_plot.add_exp_line(xdata=xdata, ydata=ydata)
+            self._spectra_plot.set_exp_line(xdata=xdata, ydata=ydata)
             self._exp_data = dict()
             self._exp_data['wavelength'] = xdata
             self._exp_data['intensity'] = ydata
@@ -227,7 +228,7 @@ class GUISpectra(QW.QMainWindow):
                 self.statusBar().showMessage('Ready')
 
         def change_to_assumed_wavelength():
-            self._spectra_plot.cls_exp_lines()
+            self._spectra_plot.cls_exp_line()
             self._exp_data["wavelength"] = self._assumed_wavelength.value()
             self._exp_data["intensity"] = np.zeros_like(self._exp_data["wavelength"])
             self._wavelength_range.set_value(_min=self._exp_data["wavelength"].min(),
@@ -236,10 +237,11 @@ class GUISpectra(QW.QMainWindow):
         #   file read, parameters input, buttons
         self._file_read.TextChangedSignal.connect(_file_read_callback)
         self._parameters_input.valueChanged.connect(_parameters_input_callback)
-        self._plot_buttons['fit'].clicked.connect(self.sim_exp)
-        self._plot_buttons['clear_exp'].clicked.connect(self._spectra_plot.cls_exp_lines)
-        self._plot_buttons['clear_sim'].clicked.connect(self._spectra_plot.cls_sim_line)
         self._plot_buttons['auto_scale'].clicked.connect(self._spectra_plot.auto_scale)
+        self._plot_buttons["synthetic"].clicked.connect(self.plot_sim)
+        self._plot_buttons['clear_exp'].clicked.connect(self._spectra_plot.cls_exp_line)
+        self._plot_buttons['clear_sim'].clicked.connect(self._spectra_plot.cls_sim_line)
+        self._plot_buttons['fit'].clicked.connect(self.sim_exp)
         self._plot_buttons['FitDistrbtn'].clicked.connect(self.sim_exp_by_distribution)
         #   spectra plot
         self._spectra_plot.figure.canvas.mpl_connect('motion_notify_event',
@@ -261,76 +263,88 @@ class GUISpectra(QW.QMainWindow):
         return wave_exp_in_range, intens_exp_in_range
 
     # ------------------------------------------------------------------------------------------- #
-    def _evolve_spectra(self, _spc_func, slit_func_name,
-                        x, Tvib, Trot_cold, Trot_hot,
-                        hot_ratio, fwhm_g, fwhm_l,
-                        x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
-                        y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
-        # --------------------------------------------------------------------------------------- #
-        # Trace the variation of the parameters.
-        _str_0 = 'Trot : {Trot:6.0f} K, Tvib : {Tvib:6.0f} K\n'.format(Tvib=Tvib, Trot=Trot_cold)
-        _str_1 = '  wG : {g:6.1f} pm\n  wL : {l:6.1f} pm\n'.format(g=fwhm_g * 1e3, l=fwhm_l * 1e3)
-        print(_str_0 + _str_1)
-        # --------------------------------------------------------------------------------------- #
-        #   1. Set distribution.
-        #       This part is associated with Tvib, Trot_cold, Trot_hot, hot_ratio.
-        if self._parameters_input._temperature.para_form() == 'one_Trot':
-            _spc_func.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot_cold)
-        else:
-            _spc_func.set_double_maxwell_upper_state_distribution(Tvib=Tvib,
-                                                                  Trot_cold=Trot_cold,
-                                                                  Trot_hot=Trot_hot,
-                                                                  hot_ratio=hot_ratio)
-        # --------------------------------------------------------------------------------------- #
-        #   2. Set intensity without profile function.
-        _spc_func.set_intensity()
-        # --------------------------------------------------------------------------------------- #
-        #   3. Correct the wavelength and its range.
-        #       This part is associated with the wavelength correct.
-        x_correct_kwargs = dict(x0=x_offset_x0,
-                                k0=x_offset_k0, k1=x_offset_k1, k2=x_offset_k2, k3=x_offset_k3)
-        y_correct_kwargs = dict(x0=y_offset_x0,
-                                k0=y_offset_k0, c0=y_offset_c0, I0=y_offset_I0)
-        self.x_correct_func = self._parameters_input._x_offset.correct_func(**x_correct_kwargs)
-        self.y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_kwargs)
-        self.x_correct_func_reversed = self._parameters_input._x_offset.correct_func_reversed(
-            **x_correct_kwargs)
-        #   Calculate the absolute wavelength position to evolve the intensity and its range.
-        wavelength_corrected = self.x_correct_func(x)
-        # --------------------------------------------------------------------------------------- #
-        #   4. Evolve the spectra on the corrected wavelength.
-        _, intens = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
-                                                      slit_func=slit_func_name,
-                                                      fwhm={'Gaussian': fwhm_g,
-                                                            'Lorentzian': fwhm_l},
-                                                      normalized=True)
-        # --------------------------------------------------------------------------------------- #
-        #   5. Correct the intensity.
-        _corrected_intensity = self.y_correct_func(_, intens)
-        return _corrected_intensity
+    # def _evolve_spectra(self, _spc_func, slit_func_name,
+    #                     x, Tvib, Trot_cold, Trot_hot,
+    #                     hot_ratio, fwhm_g, fwhm_l,
+    #                     x_offset_x0, x_offset_k0, x_offset_k1, x_offset_k2, x_offset_k3,
+    #                     y_offset_x0, y_offset_k0, y_offset_c0, y_offset_I0):
+    #     # --------------------------------------------------------------------------------------- #
+    #     # Trace the variation of the parameters.
+    #     _str_0 = 'Trot : {Trot:6.0f} K, Tvib : {Tvib:6.0f} K\n'.format(Tvib=Tvib, Trot=Trot_cold)
+    #     _str_1 = '  wG : {g:6.1f} pm\n  wL : {l:6.1f} pm\n'.format(g=fwhm_g * 1e3, l=fwhm_l * 1e3)
+    #     print(_str_0 + _str_1)
+    #     # --------------------------------------------------------------------------------------- #
+    #     #   1. Set distribution.
+    #     #       This part is associated with Tvib, Trot_cold, Trot_hot, hot_ratio.
+    #     if self._parameters_input._temperature.para_form() == 'one_Trot':
+    #         _spc_func.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot_cold)
+    #     else:
+    #         _spc_func.set_double_maxwell_upper_state_distribution(Tvib=Tvib,
+    #                                                               Trot_cold=Trot_cold,
+    #                                                               Trot_hot=Trot_hot,
+    #                                                               hot_ratio=hot_ratio)
+    #     # --------------------------------------------------------------------------------------- #
+    #     #   2. Set intensity without profile function.
+    #     _spc_func.set_intensity()
+    #     # --------------------------------------------------------------------------------------- #
+    #     #   3. Correct the wavelength and its range.
+    #     #       This part is associated with the wavelength correct.
+    #     x_correct_kwargs = dict(x0=x_offset_x0,
+    #                             k0=x_offset_k0, k1=x_offset_k1, k2=x_offset_k2, k3=x_offset_k3)
+    #     y_correct_kwargs = dict(x0=y_offset_x0,
+    #                             k0=y_offset_k0, c0=y_offset_c0, I0=y_offset_I0)
+    #     self.x_correct_func = self._parameters_input._x_offset.correct_func(**x_correct_kwargs)
+    #     self.y_correct_func = self._parameters_input._y_offset.correct_func(**y_correct_kwargs)
+    #     self.x_correct_func_reversed = self._parameters_input._x_offset.correct_func_reversed(
+    #         **x_correct_kwargs)
+    #     #   Calculate the absolute wavelength position to evolve the intensity and its range.
+    #     wavelength_corrected = self.x_correct_func(x)
+    #     # --------------------------------------------------------------------------------------- #
+    #     #   4. Evolve the spectra on the corrected wavelength.
+    #     _, intens = _spc_func.get_extended_wavelength(waveLength_exp=wavelength_corrected,
+    #                                                   slit_func=slit_func_name,
+    #                                                   fwhm={'Gaussian': fwhm_g,
+    #                                                         'Lorentzian': fwhm_l},
+    #                                                   normalized=True)
+    #     # --------------------------------------------------------------------------------------- #
+    #     #   5. Correct the intensity.
+    #     _corrected_intensity = self.y_correct_func(_, intens)
+    #     return _corrected_intensity
 
     # ------------------------------------------------------------------------------------------- #
     def get_sim_data(self):
         r"""
         Get the synthetic spectra based on the parameters on the panel.
         """
+
+        fwhm = dict(Gaussian=self._parameters_input._fwhm.value()["fwhm_g"],
+                    Lorentzian=self._parameters_input._fwhm.value()["fwhm_l"])
+        Tvib = self._parameters_input._temperature.value()['Tvib']
+        Trot = self._parameters_input._temperature.value()['Trot_cold']
         spc_func = self._spectra_tree.spectra_func
-        slit_func = self._parameters_input._fwhm.para_form()
-        intensity_simulated = self._evolve_spectra(spc_func, slit_func,
-                                                   self.wave_intens_exp_in_range()[0],
-                                                   *self._parameters_input.value())
-        wave_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
-        self._goodness_of_fit.set_value(p_data=intensity_simulated, o_data=intens_exp_in_range)
-        return wave_exp_in_range, intensity_simulated
+        spc_func._set_delta_wv_spr_matrix(wv_exp=self.wave_intens_exp_in_range()[0], fwhm=fwhm)
+        spc_func.convolve_slit_func(fwhm=fwhm, slit_func="Voigt")
+        spc_func.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
+        spc_func.set_intensity()
+        synthetic_intensity = spc_func.get_intensity_exp()
+        self._goodness_of_fit.set_value(p_data=synthetic_intensity,
+                                        o_data=self.wave_intens_exp_in_range()[1])
+        return self.wave_intens_exp_in_range()[0], synthetic_intensity
+        # slit_func = self._parameters_input._fwhm.para_form()
+        # intensity_simulated = self._evolve_spectra(spc_func, slit_func,
+        #                                            self.wave_intens_exp_in_range()[0],
+        #                                            *self._parameters_input.value())
+        # wave_exp_in_range, intens_exp_in_range = self.wave_intens_exp_in_range()
+        # return wave_exp_in_range, intensity_simulated
 
     def plot_sim(self):
-        self._spectra_plot.cls_sim_line()
+        # self._spectra_plot.cls_sim_line()
         xdata, ydata = self.get_sim_data()
         self._spectra_plot.set_sim_line(xdata=xdata, ydata=ydata)
 
     # ------------------------------------------------------------------------------------------- #
     def _get_line_intensity(self, band, v_upper, v_lower, branch):
-        #TODO change it.
+        # TODO change it.
         paras_dict = self._parameters_input.value()
         Tvib, Trot_cold, Trot_hot, hot_ratio = paras_dict[:4]
         Trot_para_form = self._parameters_input._temperature.para_form()

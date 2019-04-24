@@ -12,11 +12,14 @@ import os
 import math
 import numpy as np
 from scipy import sparse as spr
+from scipy.optimize import curve_fit
 import pandas as pd
 from BasicFunc import constants as const
 from BasicFunc import gaussian, lorentzian, pseudo_voigt
+from BasicFunc import tracer
 from copy import deepcopy
 from matplotlib import pyplot as plt
+from lmfit import Model
 
 
 # from .voigt import voigt_pseudo
@@ -373,9 +376,11 @@ class Spectra(object):
         self.intensity = self.intensity * 1.9864458241717582e-25  # multiply hc
 
     # ------------------------------------------------------------------------------------------- #
-    def _set_delta_wv_spr_matrix(self, *, wv_exp, fwhm, threshold=3):
+    def _set_delta_wv_spr_matrix(self, *, wv_exp, fwhm, threshold=8):
         delta_wv = wv_exp[np.newaxis].transpose() - self.wave_length.ravel()
-        _fwhm = max(fwhm["Gaussian"], fwhm["Lorentzian"])
+        # _fwhm = max(fwhm["Gaussian"], fwhm["Lorentzian"])
+        _fwhm = 0.5346 * fwhm["Lorentzian"] + np.sqrt(0.2166 * fwhm["Lorentzian"] ** 2
+                                                      + fwhm["Gaussian"] ** 2)
         delta_wv[delta_wv < -_fwhm * threshold] = 0
         delta_wv[delta_wv > +_fwhm * threshold] = 0
         self._delta_wv_spr_matrix = spr.csr_matrix(delta_wv)
@@ -392,12 +397,12 @@ class Spectra(object):
         else:
             raise Exception(f"The slit_function {slit_func} is error.")
 
-    def get_intensity_exp(self):
-        return self._convolved_delta_wv.dot(self.intensity.ravel())
-
-    def fit_temperatures(self):
-        # TODO
-        pass
+    def get_intensity_exp(self, *, normalized=True):
+        _ = self._convolved_delta_wv.dot(self.intensity.ravel())
+        if normalized is True:
+            if _.max() > 0:
+                return _ / _.max()
+        return _
 
     # def get_extended_wavelength(self, *, waveLength_exp, fwhm, slit_func,
     #                             normalized=False, threshold=3):
@@ -411,70 +416,12 @@ class Spectra(object):
     #             threshold : 5e2
     #             1/(4*5e2**2+1) = 1.0e-06
     #     """
-    # --------------------------------------------------------------------------------------- #
-    #   _chosen :
-    #       the boolean to choose the absolute wavelength position in the range.
-    # _ravel_wavelength = self.wave_length.ravel()
-    # _ravel_intensity = self.intensity.ravel()
-    # wavelength_range = (waveLength_exp[0], waveLength_exp[-1])
-    # _range_added = 3 * (fwhm['Gaussian'] + fwhm['Lorentzian'])
-    # _extended_range = (wavelength_range[0] - _range_added,
-    #                    wavelength_range[1] + _range_added)
-    # _chosen = np.logical_and(_extended_range[0] < _ravel_wavelength,
-    #                          _extended_range[1] > _ravel_wavelength)
-    # if not _chosen.any():
-    #     return waveLength_exp, np.zeros_like(waveLength_exp)
-    # wavelength_in_range = _ravel_wavelength[_chosen]
-    # intensity_in_range = _ravel_intensity[_chosen]
-    # # --------------------------------------------------------------------------------------- #
     # #   Format the matrix of the delta wavelength. Convolve the slit function.
     # #                               wavelength_in_range
     # #                               *       *       *
     # #   delta_wv:   wv_exp_in_range *       *       *
     # #                               *       *       *
-    # delta_wv = (waveLength_exp[np.newaxis].transpose() - wavelength_in_range)
-    # print(delta_wv.shape)
-    # normal_intens_extended = self.evolve_slit_func(delta_wv, fwhm, slit_func, threshold)
-    # intensity_on_wv_exp = normal_intens_extended.dot(intensity_in_range)
-    # #   Return the wavelength and the simulated intensity in the range.
-    # if normalized:
-    #     self.normalized_factor = intensity_on_wv_exp.max()
-    #     return waveLength_exp, intensity_on_wv_exp / self.normalized_factor
-    # return waveLength_exp, intensity_on_wv_exp
 
-    # ------------------------------------------------------------------------------------------- #
-    # def evolve_slit_func(self, delta_wv, fwhm, slit_func, threshold):
-    #     r"""
-    #     Returns the intensity matrix based on the delta wavelength and the slit function.
-    #     """
-    #     if slit_func == 'Gaussian':
-    #         _fwhm = fwhm['Gaussian']
-    #         delta_x = delta_wv / _fwhm
-    #         _where = np.logical_and(-threshold < delta_x, delta_x < threshold)
-    #         if not _where.any():
-    #             return np.zeros_like(delta_wv)
-    #         intens_matrix = np.zeros_like(delta_wv)
-    #         _ = np.exp(-4 * np.log(2) * delta_x ** 2, out=intens_matrix, where=_where)
-    #         return intens_matrix
-    #
-    #     elif slit_func == 'Lorentzian':
-    #         _fwhm = fwhm['Lorentzian']
-    #         delta_x = delta_wv / _fwhm
-    #         _where = np.logical_and(-threshold < delta_x, delta_x < threshold)
-    #         if not _where.any():
-    #             return np.zeros_like(delta_wv)
-    #         intens_matrix = 2 / (4 * delta_x ** 2 + 1)
-    #         return intens_matrix
-    #
-    #     elif slit_func == 'Voigt':
-    #         fG = fwhm['Gaussian']
-    #         fL = fwhm['Lorentzian']
-    #         # ----------------------------------------------------------------------------------- #
-    #         return voigt_pseudo(delta_wv, fG, fL)
-    #     else:
-    #         raise Exception("The slit function '{s}' is error.".format(s=slit_func))
-
-    # ------------------------------------------------------------------------------------------- #
     @staticmethod
     def wavelength_vac2air(wv0):
         k0 = 238.0185
@@ -522,6 +469,40 @@ class MoleculeSpectra(Spectra):
 
     # def set_distribution_by_upper_state(self):
     #     pass
+
+    def fit_temperatures(self, *, wavelength_exp, intensity_exp,
+                         init_value_dict, fit_kws=dict(ftol=1e-6, xtol=1e-6)):
+        self._set_delta_wv_spr_matrix(wv_exp=wavelength_exp,
+                                      fwhm=dict(Gaussian=init_value_dict["fwhm_g"],
+                                                Lorentzian=init_value_dict["fwhm_l"]))
+
+        def fit_func(x, Tvib, Trot, fwhm_g, fwhm_l):
+            # print(f"{Tvib}, {Trot}, {fwhm_g}, {fwhm_l}")
+            self.convolve_slit_func(fwhm=dict(Gaussian=fwhm_g, Lorentzian=fwhm_l),
+                                    slit_func="Voigt")
+            self.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
+            self.set_intensity()
+            return self.get_intensity_exp(normalized=True)
+
+        spectra_fit_model = Model(fit_func)
+        # set params
+        params = spectra_fit_model.make_params()
+        value_range_dict = dict(Tvib=(300, 10000),
+                                Trot=(300, 10000),
+                                fwhm_g=(0, 1),
+                                fwhm_l=(0, 1))
+        for _key in ["Tvib", "Trot", "fwhm_g", "fwhm_l"]:
+            params[_key].set(value=init_value_dict[_key])
+            params[_key].set(min=value_range_dict[_key][0],
+                             max=value_range_dict[_key][1])
+            params[_key].set(vary=True)
+        # To fit it.
+        sim_result = spectra_fit_model.fit(intensity_exp,
+                                           params=params,
+                                           method="least_squares",
+                                           fit_kws=fit_kws,
+                                           x=wavelength_exp)
+        return sim_result
 
     # def set_maxwell_distribution(self, *, Tvib, Trot):
     #     r"""
@@ -582,6 +563,8 @@ class N2Spectra(MoleculeSpectra):
                                                                             v1=self.v_lower)
         self.wave_length = self.wavelength_vac2air(np.loadtxt(wv_lg_path))[:self.J_max, :]
         self.wave_number = np.loadtxt(wv_nm_path)[:self.J_max, :]
+        self.wave_length = np.nan_to_num(self.wave_length)
+        self.wave_number = np.nan_to_num(self.wave_number)
         self._set_emission_coefficients()
 
     def _set_emission_coefficients(self):
@@ -848,19 +831,86 @@ class AddSpectra(MoleculeSpectra):
 
 # ----------------------------------------------------------------------------------------------- #
 if __name__ == '__main__':
-    wv_exp = np.linspace(300, 320, num=1000)
-    oh = OHSpectra(band='A-X', v_upper=0, v_lower=0)
+    wv_exp = np.linspace(280, 300, num=1024)
+    spectra = OHSpectra(band='A-X', v_upper=1, v_lower=0)
+    # spectra = N2Spectra(band='C-B', v_upper=0, v_lower=0)
     fwhm = dict(Gaussian=0.05, Lorentzian=0.05)
 
-    oh._set_delta_wv_spr_matrix(wv_exp=wv_exp, fwhm=fwhm)
+    spectra._set_delta_wv_spr_matrix(wv_exp=wv_exp, fwhm=fwhm)
 
 
     def test():
-        oh.convolve_slit_func(fwhm=fwhm, slit_func="Voigt")
-        oh.set_maxwell_upper_state_distribution(Tvib=3000, Trot=2000)
-        oh.set_intensity()
-        return oh.get_intensity_exp()
+        spectra.convolve_slit_func(fwhm=fwhm, slit_func="Voigt")
+        # spectra.set_maxwell_upper_state_distribution(Tvib=3000, Trot=2345)
+        spectra.set_double_maxwell_upper_state_distribution(Tvib=3000, Trot_cold=400,
+                                                            Trot_hot=5000, hot_ratio=0.5)
+        spectra.set_intensity()
+        return spectra.get_intensity_exp()
 
 
-    intensity_exp = test()
-    plt.plot(wv_exp, intensity_exp)
+    intensity_exp = test() + np.random.random(wv_exp.size) * 0.01
+
+
+    # plt.plot(wv_exp, intensity_exp)
+    # --------------------------------------------------------------------------------------- #
+    # r"""
+    def fit_it():
+        return spectra.fit_temperatures(wavelength_exp=wv_exp,
+                                        intensity_exp=intensity_exp,
+                                        init_value_dict=dict(Tvib=2000, Trot=3000,
+                                                             fwhm_g=0.03, fwhm_l=0.07),
+                                        fit_kws=dict(ftol=1e-10, xtol=1e-10))
+
+
+    # sim_result = fit_it()
+    # sim_result.plot_fit()
+    # print(sim_result.fit_report())
+    # """
+    # ------------------------------------------------------------------------------------------- #
+    # curve fit
+    @tracer
+    def fit_func(x, Tvib, Trot, fwhm_g, fwhm_l):
+        print(f"{Tvib}, {Trot}, {fwhm_g}, {fwhm_l}")
+        spectra.convolve_slit_func(fwhm=dict(Gaussian=fwhm_g, Lorentzian=fwhm_l),
+                                   slit_func="Voigt")
+        spectra.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
+        spectra.set_intensity()
+        return spectra.get_intensity_exp()
+
+
+    def fit_it_by_curve_fit():
+        paras_fitted, pcov = curve_fit(fit_func, wv_exp, intensity_exp, bounds=(0, np.inf),
+                                       p0=[2000, 3000, 0.03, 0.07],
+                                       ftol=1e-10, xtol=1e-10)
+        perr = np.sqrt(np.diag(pcov))
+        return paras_fitted, perr
+
+
+    @tracer
+    def fit_func_by_distribution(x, *_distri):
+        _distri_array = np.array(_distri)
+        spectra.set_upper_state_distribution(_distri_array)
+        spectra.set_intensity()
+        return spectra.get_intensity_exp()
+
+
+    # def fit_distribution():
+    spectra.convolve_slit_func(fwhm=dict(Gaussian=0.05, Lorentzian=0.05), slit_func="Voigt")
+    spectra.set_maxwell_upper_state_distribution(Tvib=3000, Trot=2000)
+    spectra.upper_state.plot_reduced_distribution(new_figure=True)
+    distri_guess = spectra.upper_state_ravel_distribution()
+    distri_guess = distri_guess / distri_guess[0]
+    _bounds = (np.zeros_like(distri_guess), np.inf * np.ones_like(distri_guess))
+    _bounds[0][0] = distri_guess[0] * 0.99
+    _bounds[1][0] = distri_guess[0]
+    distri_fitted, pcov = curve_fit(fit_func_by_distribution,
+                                    wv_exp, intensity_exp,
+                                    bounds=_bounds,
+                                    p0=distri_guess,
+                                    ftol=1e-10)
+    perr = np.sqrt(np.diag(pcov))
+    spectra.set_upper_state_distribution(distri_fitted)
+    spectra.set_upper_state_distribution_error(perr)
+    spectra.upper_state.plot_distribution()
+    spectra.upper_state.plot_reduced_distribution()
+    # return distri_fitted, perr
