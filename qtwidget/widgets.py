@@ -12,9 +12,12 @@ import math
 import numpy as np
 from matplotlib.figure import Figure
 from matplotlib.ticker import FormatStrFormatter
-from PyQt5 import QtWidgets as QW
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QCursor, QFont
+# from PyQt5 import QtWidgets as QW
+# from PyQt5.QtCore import Qt, QSize
+# from PyQt5.QtGui import QCursor, QFont
+from PySide6 import QtWidgets as QW
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtGui import QCursor, QFont
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
 

@@ -20,6 +20,7 @@ from BasicFunc import tracer
 from copy import deepcopy
 from matplotlib import pyplot as plt
 from lmfit import Model
+from pathlib import Path
 
 
 # from .voigt import voigt_pseudo
@@ -557,9 +558,9 @@ class N2Spectra(MoleculeSpectra):
         r""" wavelength, wavenumber, emission_coefs"""
         dir_path = os.path.dirname(os.path.realpath(__file__))
         assert self.band == 'C-B'
-        wv_lg_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavelength_vac.dat".format(v0=self.v_upper,
+        wv_lg_path = dir_path + r"/N2(C-B)/{v0}-{v1}/wavelength_vac.dat".format(v0=self.v_upper,
                                                                                 v1=self.v_lower)
-        wv_nm_path = dir_path + r"\N2(C-B)\{v0}-{v1}\wavenumber.dat".format(v0=self.v_upper,
+        wv_nm_path = dir_path + r"/N2(C-B)/{v0}-{v1}/wavenumber.dat".format(v0=self.v_upper,
                                                                             v1=self.v_lower)
         self.wave_length = self.wavelength_vac2air(np.loadtxt(wv_lg_path))[:self.J_max, :]
         self.wave_number = np.loadtxt(wv_nm_path)[:self.J_max, :]
@@ -617,19 +618,25 @@ class N2pSpectra(MoleculeSpectra):
 
     def _set_coefs(self, *, band, v_upper, v_lower):
         assert band == "B-X"
-        _sign = "{v0}-{v1}".format(v0=v_upper, v1=v_lower)
+        # _sign = "{v0}-{v1}".format(v0=v_upper, v1=v_lower)
 
         def read_coefficients_from_csv(file_name):
             return np.genfromtxt(file_name, delimiter=',', skip_header=5)[:, 1:]
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        wvlg_path = dir_path + r"\N2+(B-X)\{v2v}\line_position_air.csv".format(v2v=_sign)
-        wvnm_path = dir_path + r"\N2+(B-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
-        ec_path = dir_path + r"\N2+(B-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
+        wvlg_path = Path(dir_path) / Path("N2+(B-X)", f"{v_upper}-{v_lower}",
+                                          "line_position_air.csv")
+        wvnm_path = Path(dir_path) / Path("N2+(B-X)", f"{v_upper}-{v_lower}",
+                                          "line_position_cm-1.csv")
+        ec_path = Path(dir_path) / Path("N2+(B-X)", f"{v_upper}-{v_lower}",
+                                        "emission_coefficients.csv")
+        # wvlg_path = dir_path + r"\N2+(B-X)\{v2v}\line_position_air.csv".format(v2v=_sign)
+        # wvnm_path = dir_path + r"\N2+(B-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
+        # ec_path = dir_path + r"\N2+(B-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
         _chosen_branch = [0, 1, 4, 5, 8, 9]  # not all data from lifbase are validated.
-        self.wave_length = read_coefficients_from_csv(wvlg_path)[:, _chosen_branch] / 10
-        self.wave_number = read_coefficients_from_csv(wvnm_path)[:, _chosen_branch]
-        self.emission_coefficients = read_coefficients_from_csv(ec_path)[:, _chosen_branch]
+        self.wave_length = read_coefficients_from_csv(str(wvlg_path))[:, _chosen_branch] / 10
+        self.wave_number = read_coefficients_from_csv(str(wvnm_path))[:, _chosen_branch]
+        self.emission_coefficients = read_coefficients_from_csv(str(ec_path))[:, _chosen_branch]
 
     def _set_distribution_from_upper_state_distribution(self):
         self.distribution = np.zeros((85, 6))
@@ -679,18 +686,26 @@ class OHSpectra(MoleculeSpectra):
     def _set_coefs(self, *, band, v_upper, v_lower):
         assert band == 'A-X'
         # assert (v_upper, v_lower) in ((0, 0), (1, 0), (1, 1))
-        _sign = '{v0}-{v1}'.format(v0=v_upper, v1=v_lower)
+        # _sign = '{v0}-{v1}'.format(v0=v_upper, v1=v_lower)
 
         def read_coefficients_from_csv(file_name):
             return np.genfromtxt(file_name, delimiter=',', skip_header=4)[:, 1:]
 
         dir_path = os.path.dirname(os.path.realpath(__file__))
-        wvlg_path = dir_path + r"\OH(A-X)\{v2v}\line_position_air.csv".format(v2v=_sign)
-        wvnm_path = dir_path + r"\OH(A-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
-        ec_path = dir_path + r"\OH(A-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
-        self.wave_length = read_coefficients_from_csv(wvlg_path) / 10
-        self.wave_number = read_coefficients_from_csv(wvnm_path)
-        self.emission_coefficients = read_coefficients_from_csv(ec_path)
+        wvlg_path = Path(dir_path) / Path("OH(A-X)", f"{v_upper}-{v_lower}",
+                                          "line_position_air.csv")
+        wvnm_path = Path(dir_path) / Path("OH(A-X)", f"{v_upper}-{v_lower}",
+                                          "line_position_cm-1.csv")
+        ec_path = Path(dir_path) / Path("OH(A-X)", f"{v_upper}-{v_lower}",
+                                        "emission_coefficients.csv")
+        print(wvlg_path)
+        # wvlg_path = dir_path + r"\OH(A-X)\{v2v}\line_position_air.csv".format(v2v=_sign)
+        # wvnm_path = dir_path + r"\OH(A-X)\{v2v}\line_position_cm-1.csv".format(v2v=_sign)
+        # ec_path = dir_path + r"\OH(A-X)\{v2v}\emission_coefficients.csv".format(v2v=_sign)
+        self.wave_length = read_coefficients_from_csv(str(wvlg_path)) / 10
+        print(self.wave_length)
+        self.wave_number = read_coefficients_from_csv(str(wvnm_path))
+        self.emission_coefficients = read_coefficients_from_csv(str(ec_path))
         # self._set_Ge(v_upper)
 
     def _set_distribution_from_upper_state_distribution(self):

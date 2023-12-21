@@ -13,13 +13,18 @@ import re
 import numpy as np
 from numpy.polynomial import Polynomial as P
 from matplotlib import ticker
-from PyQt5 import QtWidgets as QW
-from PyQt5.QtGui import QCursor, QFont
-from PyQt5.QtCore import Qt, QSize, pyqtSignal
+# from PyQt5 import QtWidgets as QW
+# from PyQt5.QtGui import QCursor, QFont
+# from PyQt5.QtCore import Qt, QSize, pyqtSignal
+from PySide6 import QtWidgets as QW
+from PySide6.QtGui import QCursor, QFont
+from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Signal as pyqtSignal
 from spectra import OHSpectra, COSpectra, N2Spectra, N2pSpectra, AddSpectra, convolute_to_voigt
 from .widgets import QPlot
-from BetterQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox, BetterQPushButton
-from BetterQWidgets import BetterQPushButton as BetterButton
+from myQWidgets import BetterQLabel, BetterQDoubleSpinBox, SciQDoubleSpinBox, \
+    BetterQPushButton
+from myQWidgets import BetterQPushButton as BetterButton
 
 _GROUPBOX_TITLE_STYLESHEET = "QGroupBox {font-weight: bold; font-family: Helvetica; font-size: " \
                              "10pt}"
@@ -48,7 +53,7 @@ class _DefaultQDoubleSpinBox(QW.QDoubleSpinBox):
         self.setFont(_DOUBLESPINBOX_FONT)
         self.setFixedWidth(85)
         self.setAlignment(Qt.AlignRight)
-        self.setButtonSymbols(self.NoButtons)
+        self.setButtonSymbols(QW.QAbstractSpinBox.NoButtons)
 
 
 class _DefaultQLabel(QW.QLabel):
@@ -603,7 +608,7 @@ class ParaQWidget(QW.QFrame):
         self._fwhm = FWHMQGroupBox()
         self._x_offset = XOffsetQGroupBox()
         self._y_offset = YOffsetQGroupBox()
-        self.setFrameStyle(self.Box | self.Plain)
+        self.setFrameStyle(QW.QFrame.Box | QW.QFrame.Plain)
         self.setLineWidth(1)
         self._set_layout()
         self._set_slot()
@@ -836,12 +841,14 @@ class CheckableQTreeWidget(QW.QTreeWidget):
             node = QW.QTreeWidgetItem(self)
             node.setText(0, _node_str)
             node.setCheckState(0, Qt.Unchecked)
-            node.setFlags(node.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsTristate)
+            node.setFlags(node.flags() | Qt.ItemFlag.ItemIsUserCheckable |
+                          Qt.ItemFlag.ItemIsAutoTristate)
             self.node_dict[_node_str] = node
             self.item_dict[_node_str] = []
             for _child_str in self._DICT[_node_str]:
                 child = QW.QTreeWidgetItem(node)
-                child.setFlags(child.flags() | Qt.ItemIsUserCheckable | Qt.ItemIsTristate)
+                child.setFlags(child.flags() | Qt.ItemFlag.ItemIsUserCheckable |
+                               Qt.ItemFlag.ItemIsAutoTristate)
                 child.setText(0, _child_str)
                 child.setCheckState(0, Qt.Unchecked)
                 self.item_dict[_node_str].append(child)
@@ -1006,8 +1013,8 @@ class BandBranchesQTreeWidget(CheckableQTreeWidget):
              'OH(A-X)_3-2': OHSpectra._BRANCH_SEQ}
     stateChanged = pyqtSignal()
 
-    def __int__(self, parent=None):
-        super().__int__(parent)
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setFixedWidth(200)
         self.setFixedHeight(500)
 
@@ -1169,7 +1176,7 @@ class RangeQWidget(_DefaultQGroupBox):
         self.max_spinBox.setValue(850)
 
     def value(self):
-        return np.array([self.min_spinBox.value(), self.max_spinBox.value()], dtype=np.float)
+        return np.array([self.min_spinBox.value(), self.max_spinBox.value()], dtype=float)
 
     def set_value(self, *, _min, _max):
         if self.isChecked():

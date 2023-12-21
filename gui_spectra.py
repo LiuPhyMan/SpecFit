@@ -17,10 +17,15 @@ from matplotlib import pyplot as plt
 import time
 from spectra import OHSpectra
 from lmfit import Model
-from PyQt5 import QtWidgets as QW
-from PyQt5.QtGui import QIcon, QFont, QCursor
-from PyQt5.QtCore import Qt, pyqtSignal
-from BetterQWidgets import BetterQPushButton
+# from PyQt5 import QtWidgets as QW
+from PySide6 import QtWidgets as QW
+# from PyQt5.QtGui import QIcon, QFont, QCursor
+from PySide6.QtGui import QIcon, QFont, QCursor, QAction
+# from PyQt5.QtCore import Qt, pyqtSignal
+from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal as pyqtSignal
+# from BetterQWidgets import BetterQPushButton
+from myQWidgets import BetterQPushButton
 from BasicFunc import tracer
 from BasicFunc import constants as const
 from qtwidget import (SpectraPlot,
@@ -81,7 +86,7 @@ class GUISpectra(QW.QMainWindow):
 
     def _set_dockwidget(self):
         # _default_features = QW.QDockWidget.DockWidgetClosable | QW.QDockWidget.DockWidgetFloatable
-        _default_features = QW.QDockWidget.AllDockWidgetFeatures
+        # _default_features = QW.QDockWidget.AllDockWidgetFeatures
         _list = ['Branch', 'Resize', "Fit_Args", "Output", "Bands", "AssumedWavelength"]
         _widgets_to_dock = [self._branch_tree,
                             self._resize_input,
@@ -93,7 +98,7 @@ class GUISpectra(QW.QMainWindow):
         for _, _widget in zip(_list, _widgets_to_dock):
             _dock_dict[_] = QW.QDockWidget(_, self)
             _dock_dict[_].setWidget(_widget)
-            _dock_dict[_].setFeatures(_default_features)
+            # _dock_dict[_].setFeatures(_default_features)
             _dock_dict[_].setVisible(False)
             _dock_dict[_].setFloating(True)
             _dock_dict[_].setCursor(QCursor(Qt.PointingHandCursor))
@@ -111,8 +116,8 @@ class GUISpectra(QW.QMainWindow):
 
     def _set_toolbar(self):
         self.toolbar = self.addToolBar('toolbar')
-        save_action = QW.QAction('Save', self)
-        report_action = QW.QAction('Report', self)
+        save_action = QAction('Save', self)
+        report_action = QAction('Report', self)
         save_action.setFont(_DEFAULT_TOOLBAR_FONT)
         report_action.setFont(_DEFAULT_TOOLBAR_FONT)
         self.toolbar.addAction(save_action)
@@ -256,10 +261,14 @@ class GUISpectra(QW.QMainWindow):
         r"""Returns wave_exp, intensity_exp in the range."""
         wv_range = self._wavelength_range.value()
         wave_exp = self._exp_data["wavelength"]
+        print("wave_intens_exp_in_range")
+        # print(wave_exp)
+        # print(wv_range)
         intens_exp = self._exp_data["intensity"]
         _boolean_in_range = np.logical_and(wv_range[0] < wave_exp, wave_exp < wv_range[1])
         wave_exp_in_range = wave_exp[_boolean_in_range]
         intens_exp_in_range = intens_exp[_boolean_in_range]
+        print(wave_exp_in_range)
         return wave_exp_in_range, intens_exp_in_range
 
     # ------------------------------------------------------------------------------------------- #
@@ -322,6 +331,7 @@ class GUISpectra(QW.QMainWindow):
         Tvib = self._parameters_input._temperature.value()['Tvib']
         Trot = self._parameters_input._temperature.value()['Trot_cold']
         spc_func = self._spectra_tree.spectra_func
+        print(spc_func)
         spc_func._set_delta_wv_spr_matrix(wv_exp=self.wave_intens_exp_in_range()[0], fwhm=fwhm)
         spc_func.convolve_slit_func(fwhm=fwhm, slit_func="Voigt")
         spc_func.set_maxwell_upper_state_distribution(Tvib=Tvib, Trot=Trot)
@@ -620,13 +630,14 @@ class Temp(QW.QMainWindow):
 
 # ----------------------------------------------------------------------------------------------- #
 if __name__ == "__main__":
-    if not QW.QApplication.instance():
-        app = QW.QApplication(sys.argv)
-    else:
-        app = QW.QApplication.instance()
-    app.setStyle(QW.QStyleFactory.create("WindowsVista"))
+    # if not QW.QApplication.instance():
+    #     app = QW.QApplication(sys.argv)
+    # else:
+    #     app = QW.QApplication.instance()
+    app = QW.QApplication(sys.argv)
+    # app.setStyle(QW.QStyleFactory.create("WindowsVista"))
     window = GUISpectra()
     # window = Temp()
     window.show()
-    # app.exec_()
-    app.aboutToQuit.connect(app.deleteLater)
+    sys.exit(app.exec())
+    # app.aboutToQuit.connect(app.deleteLater)
